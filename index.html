@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Gráfica Rápida - Design Minimalista</title>
+    <title>Sistema Gráfica Rápida - Design Minimalista (v26 - Dados Compartilhados)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -525,40 +525,40 @@
                 <section id="telaInicial" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> 
                     <h1 class="dashboard-header">Painel de Controlo</h1> 
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                        <div class="material-metric-card pedidos-hoje">
+                        <div class="metric-card-dashboard pedidos-hoje">
                             <div class="card-header-color"></div>
                             <div class="card-content">
-                                <div class="metric-icon-bg pedidos-hoje"><i class="fas fa-calendar-day"></i></div>
+                                <div class="icon-wrapper-dashboard pedidos-hoje"><i class="fas fa-calendar-day"></i></div>
                                 <div class="metric-details">
                                     <div class="metric-label-dashboard">Pedidos Hoje</div>
                                     <div id="metricPedidosHoje" class="metric-value-dashboard">0</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="material-metric-card pedidos-pendentes">
+                        <div class="metric-card-dashboard pedidos-pendentes">
                             <div class="card-header-color"></div>
                             <div class="card-content">
-                                <div class="metric-icon-bg pedidos-pendentes"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="icon-wrapper-dashboard pedidos-pendentes"><i class="fas fa-hourglass-half"></i></div>
                                 <div class="metric-details">
                                     <div class="metric-label-dashboard">Pendentes</div>
                                     <div id="metricPedidosPendentes" class="metric-value-dashboard">0</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="material-metric-card faturamento-mes">
+                        <div class="metric-card-dashboard faturamento-mes">
                             <div class="card-header-color"></div>
                             <div class="card-content">
-                                <div class="metric-icon-bg faturamento-mes"><i class="fas fa-dollar-sign"></i></div>
+                                <div class="icon-wrapper-dashboard faturamento-mes"><i class="fas fa-dollar-sign"></i></div>
                                 <div class="metric-details">
                                     <div class="metric-label-dashboard">Faturamento Mês</div>
                                     <div id="metricFaturamentoMes" class="metric-value-dashboard">R$0,00</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="material-metric-card total-clientes">
+                        <div class="metric-card-dashboard total-clientes">
                             <div class="card-header-color"></div>
                             <div class="card-content">
-                               <div class="metric-icon-bg total-clientes"><i class="fas fa-users"></i></div>
+                               <div class="icon-wrapper-dashboard total-clientes"><i class="fas fa-users"></i></div>
                                 <div class="metric-details">
                                    <div class="metric-label-dashboard">Total Clientes</div>
                                    <div id="metricTotalClientes" class="metric-value-dashboard">0</div>
@@ -1035,23 +1035,27 @@
             where 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Configuração do Firebase
-const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
-  apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
+        // Configuração do Firebase - SUBSTITUA PELAS SUAS CONFIGURAÇÕES REAIS
+        const firebaseConfig = {
+             apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
   authDomain: "sistema-grafica-pro.firebaseapp.com",
   projectId: "sistema-grafica-pro",
-  storageBucket: "sistema-grafica-pro.firebasestorage.app", // Verifique se é .appspot.com ou .firebasestorage.app conforme o console forneceu
+  storageBucket: "sistema-grafica-pro.firebasestorage.app",
   messagingSenderId: "1043193530848",
   appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
-};
+        };
 
         // Inicialização do Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let userId = null; 
+        // Identificador da instância da aplicação/loja (usado para o caminho no Firestore)
+        // Se __app_id for definido externamente (não é o caso aqui), ele será usado.
+        // Caso contrário, 'default-app-id' é usado como o namespace principal para os dados desta gráfica.
+        const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        let userId = null; // ID do usuário anônimo - ainda útil para a sessão
         let produtosCache = [];
         let pedidoImagemBase64 = null; 
         let todosOsPedidosCache = []; 
@@ -1066,14 +1070,18 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         let loggedInUserName = null; 
 
 
-        // --- CRIAÇÃO DE DADOS INICIAIS (AMOSTRA) ---
+        // --- CRIAÇÃO DE DADOS INICIAIS (AMOSTRA) - AGORA COMPARTILHADOS ---
         async function criarDadosIniciaisSeNaoExistirem() {
-            if (!userId) return;
+            if (!auth.currentUser) { // Espera autenticação anônima
+                console.log("Aguardando autenticação para criar dados iniciais...");
+                return;
+            }
+
             // Clientes
-            const clientesPath = `artifacts/${appId}/users/${userId}/clientes`;
+            const clientesPath = `artifacts/${shopInstanceAppId}/clientes`;
             let clientesSnapshot = await getDocs(query(collection(db, clientesPath), limit(1)));
             if (clientesSnapshot.empty) {
-                console.log("Criando clientes de amostra...");
+                console.log("Criando clientes de amostra (compartilhados)...");
                 const clientesAmostra = [
                     { nome: "Carlos Silva", tipoCliente: "final", telefone: "(11) 98765-4321", email: "carlos.silva@example.com", cpfCnpj: "123.456.789-00", endereco: "Rua das Palmeiras, 123", criadoEm: Timestamp.now() },
                     { nome: "Padaria Pão Quente Ltda", tipoCliente: "revenda", telefone: "(21) 91234-5678", email: "contato@paoquente.com.br", cpfCnpj: "12.345.678/0001-99", endereco: "Av. Central, 456", criadoEm: Timestamp.now() }
@@ -1084,16 +1092,13 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     batchClientes.set(docRef, cliente);
                 });
                 await batchClientes.commit();
-                const clientesAtualizadosSnapshot = await getDocs(collection(db, clientesPath));
-                clientesCache = [];
-                clientesAtualizadosSnapshot.forEach(doc => clientesCache.push({ id: doc.id, ...doc.data() }));
-                clientesCache.sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
             }
+
             // Produtos
-            const produtosPath = `artifacts/${appId}/users/${userId}/produtos`;
+            const produtosPath = `artifacts/${shopInstanceAppId}/produtos`;
             let produtosSnapshot = await getDocs(query(collection(db, produtosPath), limit(1)));
             if (produtosSnapshot.empty) {
-                console.log("Criando produtos de amostra...");
+                console.log("Criando produtos de amostra (compartilhados)...");
                 const produtosAmostra = [
                     { nome: "Banner Lona Fosca 440g", tipoPreco: "metro", precoMetro: 55.00, precoUnidade: 0, descricao: "Banner em lona fosca.", criadoEm: Timestamp.now() },
                     { nome: "Cartão de Visita Couchê 300g (Milheiro)", tipoPreco: "unidade", precoUnidade: 120.00, precoMetro: 0, descricao: "Milheiro de cartões.", criadoEm: Timestamp.now() },
@@ -1105,16 +1110,13 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     batchProdutos.set(docRef, produto);
                 });
                 await batchProdutos.commit();
-                const produtosAtualizadosSnapshot = await getDocs(collection(db, produtosPath));
-                produtosCache = [];
-                produtosAtualizadosSnapshot.forEach(doc => produtosCache.push({ id: doc.id, ...doc.data() }));
-                produtosCache.sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
             }
+
             // Funcionários
-            const funcionariosPath = `artifacts/${appId}/users/${userId}/funcionarios`; 
+            const funcionariosPath = `artifacts/${shopInstanceAppId}/funcionarios`; 
             let funcionariosSnapshot = await getDocs(query(collection(db, funcionariosPath), limit(1)));
             if (funcionariosSnapshot.empty) {
-                console.log("Criando funcionário de amostra...");
+                console.log("Criando funcionários de amostra (compartilhados)...");
                 const batchFuncionarios = writeBatch(db);
                 const adminRef = doc(collection(db, funcionariosPath));
                 batchFuncionarios.set(adminRef, {
@@ -1132,18 +1134,14 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                  batchFuncionarios.set(producaoRef, {
                     nome: "Produção Teste", contato: "producao@grafica.com", cargo: "producao", codigoAcesso: "333333", criadoEm: Timestamp.now() 
                 });
-
                 await batchFuncionarios.commit();
-                const funcionariosAtualizadosSnapshot = await getDocs(collection(db, funcionariosPath));
-                funcionariosCache = []; 
-                funcionariosAtualizadosSnapshot.forEach(doc=>funcionariosCache.push({id:doc.id,...doc.data()}));
-                funcionariosCache.sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
             }
+
             // Fornecedores
-            const fornecedoresPath = `artifacts/${appId}/users/${userId}/fornecedores`;
+            const fornecedoresPath = `artifacts/${shopInstanceAppId}/fornecedores`;
             let fornecedoresSnapshot = await getDocs(query(collection(db, fornecedoresPath), limit(1)));
             if (fornecedoresSnapshot.empty) {
-                console.log("Criando fornecedores de amostra...");
+                console.log("Criando fornecedores de amostra (compartilhados)...");
                 const fornecedoresAmostra = [
                     { nome: "Fornecedor de Lonas ABC", contato: "vendas@lonasabc.com", tipoMaterial: "Lonas e Vinis", criadoEm: Timestamp.now() },
                     { nome: "Papelaria Central", contato: "(11) 3333-4444", tipoMaterial: "Papéis Especiais", criadoEm: Timestamp.now() }
@@ -1156,20 +1154,34 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 await batchFornecedores.commit();
             }
             
-            // Gerar Pedidos de Exemplo
-            const pedidosPath = `artifacts/${appId}/users/${userId}/pedidos`;
+            // Pedidos de Exemplo (Opcional para dados compartilhados, mas mantém a lógica)
+             const pedidosPath = `artifacts/${shopInstanceAppId}/pedidos`;
             const pedidosQuery = query(collection(db, pedidosPath), limit(1));
             const pedidosSnapshot = await getDocs(pedidosQuery);
 
-            if (pedidosSnapshot.empty && clientesCache.length > 0 && produtosCache.length > 0 && funcionariosCache.length > 0) {
-                console.log("Criando 20 pedidos de amostra...");
+            // Recarregar caches após criação para que os pedidos de exemplo possam usar
+            const clientesAtualizadosSnapshot = await getDocs(collection(db, `artifacts/${shopInstanceAppId}/clientes`));
+            let tempClientesCache = [];
+            clientesAtualizadosSnapshot.forEach(doc => tempClientesCache.push({ id: doc.id, ...doc.data() }));
+
+            const produtosAtualizadosSnapshot = await getDocs(collection(db, `artifacts/${shopInstanceAppId}/produtos`));
+            let tempProdutosCache = [];
+            produtosAtualizadosSnapshot.forEach(doc => tempProdutosCache.push({ id: doc.id, ...doc.data() }));
+            
+            const funcionariosAtualizadosSnapshot = await getDocs(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`));
+            let tempFuncionariosCache = [];
+            funcionariosAtualizadosSnapshot.forEach(doc => tempFuncionariosCache.push({ id: doc.id, ...doc.data() }));
+
+
+            if (pedidosSnapshot.empty && tempClientesCache.length > 0 && tempProdutosCache.length > 0 && tempFuncionariosCache.length > 0) {
+                console.log("Criando 20 pedidos de amostra (compartilhados)...");
                 const batchPedidos = writeBatch(db);
                 const statusPossiveis = ["Aguardando Aprovação", "Em Produção (Arte)", "Em Produção (Impressão)", "Pronto para Retirada", "Entregue", "Cancelado"];
                 const formasPagamentoPossiveis = ["Dinheiro", "Cartão de Crédito", "PIX", "Pendente"];
 
                 for (let i = 0; i < 20; i++) {
-                    const clienteAleatorio = clientesCache[Math.floor(Math.random() * clientesCache.length)];
-                    const funcionarioAleatorio = funcionariosCache[Math.floor(Math.random() * funcionariosCache.length)]; 
+                    const clienteAleatorio = tempClientesCache[Math.floor(Math.random() * tempClientesCache.length)];
+                    const funcionarioAleatorio = tempFuncionariosCache[Math.floor(Math.random() * tempFuncionariosCache.length)]; 
                     
                     const dataPedido = new Date();
                     dataPedido.setDate(dataPedido.getDate() - Math.floor(Math.random() * 30)); 
@@ -1181,7 +1193,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     const numItens = Math.floor(Math.random() * 3) + 1; 
 
                     for (let j = 0; j < numItens; j++) {
-                        const produtoAleatorio = produtosCache[Math.floor(Math.random() * produtosCache.length)];
+                        const produtoAleatorio = tempProdutosCache[Math.floor(Math.random() * tempProdutosCache.length)];
                         const quantidade = Math.floor(Math.random() * 5) + 1;
                         let valorItem = 0;
                         let largura = null, altura = null;
@@ -1263,16 +1275,21 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     batchPedidos.set(pedidoDocRef, novoPedidoExemplo);
                 }
                 await batchPedidos.commit();
-                console.log("20 pedidos de amostra criados.");
+                console.log("20 pedidos de amostra (compartilhados) criados.");
             }
+            console.log("Verificação de dados iniciais concluída.");
         }
 
 
         // --- Autenticação ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                userId = user.uid; 
+                userId = user.uid; // ID do usuário anônimo ainda é útil para a sessão
                 
+                // Carrega os dados iniciais/compartilhados uma vez
+                await criarDadosIniciaisSeNaoExistirem(); 
+                
+                // Carrega os caches de dados compartilhados
                 await Promise.all([
                     carregarClientes(),
                     carregarProdutos(),
@@ -1280,8 +1297,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     carregarFornecedores() 
                 ]);
                 
-                await criarDadosIniciaisSeNaoExistirem(); 
-                carregarTodosPedidos(); 
+                carregarTodosPedidos(); // Carrega pedidos compartilhados
                 
                 const loginScreen = document.getElementById('loginScreen');
                 const appContainer = document.getElementById('appContainer');
@@ -1303,6 +1319,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 loginScreen.classList.remove('hidden');
                 appContainer.classList.add('hidden');
                 
+                // Outros event listeners que não dependem de dados per-user
                 const pedidoDropArea = document.getElementById('pedidoImageDropArea');
                 if (pedidoDropArea) {
                     pedidoDropArea.addEventListener('paste', handlePasteImagePedido);
@@ -1334,7 +1351,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     formEditarCodigoFuncionarioEl.addEventListener('submit', handleSalvarNovoCodigoFuncionario);
                 }
 
-
                 const filtroNomeClienteEl = document.getElementById('filtroNomeCliente');
                 const filtroNumeroPedidoEl = document.getElementById('filtroNumeroPedido');
                 const filtroDataPedidoEl = document.getElementById('filtroDataPedido');
@@ -1352,7 +1368,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 if (filtroClassificacaoPedidoEl) filtroClassificacaoPedidoEl.addEventListener('change', renderizarListaCompletaPedidos);
                 if (filtroVendedorEl) filtroVendedorEl.addEventListener('change', renderizarListaCompletaPedidos); 
 
-
                 if (limparFiltrosPedidosBtn) {
                     limparFiltrosPedidosBtn.addEventListener('click', () => {
                         if (filtroNomeClienteEl) filtroNomeClienteEl.value = '';
@@ -1367,10 +1382,15 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 }
 
             } else { 
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    try { await signInWithCustomToken(auth, __initial_auth_token); } 
-                    catch (error) { console.error("Erro no signInWithCustomToken, tentando anônimo:", error); await signInAnonymously(auth); }
-                } else { await signInAnonymously(auth); }
+                // Tenta login anônimo se não houver usuário.
+                // Removido __initial_auth_token pois não é relevante para deploy externo.
+                try {
+                    await signInAnonymously(auth);
+                    console.log("Login anônimo bem-sucedido na inicialização.");
+                } catch (error) {
+                    console.error("Erro no login anônimo inicial:", error);
+                    exibirMensagem("Erro ao conectar com o servidor de autenticação. Verifique sua conexão e a configuração do Firebase.", "error");
+                }
             }
         });
 
@@ -1384,14 +1404,15 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
             loginErrorMessage.classList.add('hidden'); 
 
-            if (!userId) { 
+            if (!auth.currentUser) { // Verifica se o login anônimo ocorreu
                 loginErrorMessage.textContent = "Aguardando autenticação com o servidor. Tente novamente em instantes.";
                 loginErrorMessage.classList.remove('hidden');
                 return;
             }
 
             try {
-                const funcionariosRef = collection(db, `artifacts/${appId}/users/${userId}/funcionarios`);
+                // Acessa a coleção de funcionários compartilhada
+                const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
                 const q = query(funcionariosRef, where("codigoAcesso", "==", codigo));
                 const querySnapshot = await getDocs(q);
 
@@ -1449,7 +1470,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             document.getElementById('codigoAcesso').value = ''; 
             const filtroStatusPedidoEl = document.getElementById('filtroStatusPedido');
             if (filtroStatusPedidoEl) filtroStatusPedidoEl.value = '';
-            renderizarListaCompletaPedidos(); 
+            // renderizarListaCompletaPedidos(); // Não precisa renderizar ao fazer logout se a tela de pedidos não estiver visível
             ajustarPaddingBody(); 
         }
 
@@ -1476,7 +1497,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     cadastrosDropdown.classList.remove('hidden');
                 }
             }
-
 
             const filtroStatusPedidoEl = document.getElementById('filtroStatusPedido');
             if (filtroStatusPedidoEl) {
@@ -1609,7 +1629,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 document.getElementById('formCadastrarFornecedor').reset();
             }
              if (idSecao === 'visualizarPedidos') { 
-                // A função popularSelectFiltroVendedor() foi removida daqui, pois carregarFuncionarios já cuida disso
                 renderizarListaCompletaPedidos();
             }
         }
@@ -1849,7 +1868,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         // --- CADASTRO DE CLIENTES ---
         const formCadastrarCliente = document.getElementById('formCadastrarCliente');
         formCadastrarCliente.addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             const nome = document.getElementById('clienteNome').value;
             const tipoCliente = document.getElementById('clienteTipo').value; 
             const telefone = document.getElementById('clienteTelefone').value;
@@ -1857,7 +1876,8 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             const cpfCnpj = document.getElementById('clienteCpfCnpj').value;
             const endereco = document.getElementById('clienteEndereco').value;
             try { 
-                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/clientes`), { 
+                // Caminho compartilhado para clientes
+                await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { 
                     nome, tipoCliente, telefone, email, cpfCnpj, endereco, criadoEm: Timestamp.now() 
                 }); 
                 exibirMensagem('Cliente registado!', 'success'); formCadastrarCliente.reset();
@@ -1919,6 +1939,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
             pedidosListaDiv.innerHTML = '<p class="text-[var(--color-text-muted)] text-xs text-center py-2">A carregar pedidos...</p>';
             
+            // Busca pedidos compartilhados, filtrando pelo clienteId
             const pedidosDoCliente = todosOsPedidosCache.filter(p => p.clienteId === id);
             pedidosDoCliente.sort((a,b) => (b.dataPedido?.toMillis() || 0) - (a.dataPedido?.toMillis() || 0) );
 
@@ -1950,11 +1971,10 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
 
         function carregarClientes() {
-            if (!userId) return; 
-            const q = query(collection(db, `artifacts/${appId}/users/${userId}/clientes`)); 
+            if (!auth.currentUser) return; 
+            // Caminho compartilhado para clientes
+            const q = query(collection(db, `artifacts/${shopInstanceAppId}/clientes`)); 
             onSnapshot(q, (querySnapshot) => {
-                const selectPedidoCliente = document.getElementById('pedidoClienteSearch'); 
-                
                 clientesCache = []; 
                 if (querySnapshot.empty && activeSectionId === 'cadastrarCliente') { 
                      document.getElementById('listaClientes').innerHTML = '<p class="text-[var(--color-text-muted)] text-sm text-center py-3">Nenhum cliente registado.</p>'; 
@@ -1963,7 +1983,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 querySnapshot.forEach(doc => clientesCache.push({ id: doc.id, ...doc.data() })); 
                 clientesCache.sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
                 
-
                 if (activeSectionId === 'cadastrarCliente') {
                     renderizarListaClientes(); 
                 }
@@ -1975,13 +1994,14 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
 
         document.getElementById('formNovoClienteRapido').addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             const nome = document.getElementById('clienteRapidoNome').value;
             const telefone = document.getElementById('clienteRapidoTelefone').value;
             const tipoCliente = document.getElementById('clienteRapidoTipo').value; 
             if (!nome.trim()) { exibirMensagem("O nome do cliente é obrigatório.", "warning"); return; }
             try { 
-                const ref = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/clientes`), { 
+                // Caminho compartilhado para clientes
+                const ref = await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { 
                     nome, telefone, tipoCliente, email: '', cpfCnpj: '', endereco: '', criadoEm: Timestamp.now() 
                 }); 
                 exibirMensagem('Cliente registado!', 'success'); fecharModalNovoClienteRapido(); 
@@ -2053,15 +2073,19 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             document.getElementById('precoMetroFields').classList.toggle('hidden', t==='unidade'); 
         };
         document.getElementById('formCadastrarProduto').addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             const n=document.getElementById('produtoNome').value, t=document.getElementById('produtoTipoPreco').value, pu=parseFloat(document.getElementById('produtoPrecoUnidade').value)||0, pm=parseFloat(document.getElementById('produtoPrecoMetro').value)||0, d=document.getElementById('produtoDescricao').value;
             if (!n.trim()) { exibirMensagem("O nome do produto é obrigatório.", "warning"); return; }
-            try { await addDoc(collection(db, `artifacts/${appId}/users/${userId}/produtos`), { nome:n, tipoPreco:t, precoUnidade:pu, precoMetro:pm, descricao:d, criadoEm: Timestamp.now() }); exibirMensagem('Produto registado!', 'success'); e.target.reset(); togglePrecoFields(); 
+            try { 
+                // Caminho compartilhado para produtos
+                await addDoc(collection(db, `artifacts/${shopInstanceAppId}/produtos`), { nome:n, tipoPreco:t, precoUnidade:pu, precoMetro:pm, descricao:d, criadoEm: Timestamp.now() }); 
+                exibirMensagem('Produto registado!', 'success'); e.target.reset(); togglePrecoFields(); 
             } catch (err) { console.error("Erro reg. produto: ", err); exibirMensagem('Erro ao registar produto.', 'error'); }
         });
         function carregarProdutos() {
-            if (!userId) return; 
-            const q = query(collection(db, `artifacts/${appId}/users/${userId}/produtos`));
+            if (!auth.currentUser) return; 
+            // Caminho compartilhado para produtos
+            const q = query(collection(db, `artifacts/${shopInstanceAppId}/produtos`));
             onSnapshot(q, (snap) => {
                 const lista = document.getElementById('listaProdutos'); 
                 if (lista) lista.innerHTML = ''; 
@@ -2087,7 +2111,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         // --- CADASTRO DE FUNCIONÁRIOS ---
         const formCadastrarFuncionario = document.getElementById('formCadastrarFuncionario');
         formCadastrarFuncionario.addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             const nome = document.getElementById('funcionarioNome').value;
             const contato = document.getElementById('funcionarioContato').value;
             const cargo = document.getElementById('funcionarioCargo').value;
@@ -2097,7 +2121,8 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             if (!codigoAcesso.trim()) { exibirMensagem("O código de acesso é obrigatório.", "warning"); return; }
 
             try { 
-                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/funcionarios`), { 
+                // Caminho compartilhado para funcionários
+                await addDoc(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`), { 
                     nome, contato, cargo: cargo.toLowerCase(), codigoAcesso, criadoEm: Timestamp.now() 
                 }); 
                 exibirMensagem('Funcionário registado!', 'success'); formCadastrarFuncionario.reset();
@@ -2105,8 +2130,9 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         });
 
         function carregarFuncionarios() { 
-            if (!userId) return; 
-            const q = query(collection(db, `artifacts/${appId}/users/${userId}/funcionarios`)); 
+            if (!auth.currentUser) return; 
+            // Caminho compartilhado para funcionários
+            const q = query(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`)); 
             onSnapshot(q, (snap) => {
                 const selPedidoVendedor = document.getElementById('pedidoVendedor');
                 const listaFuncionariosEl = document.getElementById('listaFuncionarios');
@@ -2163,7 +2189,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
         async function handleSalvarNovoCodigoFuncionario(event) {
             event.preventDefault();
-            if (!userId || loggedInUserRole !== 'admin') {
+            if (!auth.currentUser || loggedInUserRole !== 'admin') {
                 exibirMensagem("Apenas administradores podem alterar códigos.", "error");
                 return;
             }
@@ -2176,7 +2202,8 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             }
             
             try {
-                const funcRef = doc(db, `artifacts/${appId}/users/${userId}/funcionarios`, funcionarioId);
+                // Caminho compartilhado para funcionários
+                const funcRef = doc(db, `artifacts/${shopInstanceAppId}/funcionarios`, funcionarioId);
                 await updateDoc(funcRef, { codigoAcesso: novoCodigo });
                 exibirMensagem("Código de acesso atualizado com sucesso!", "success");
                 fecharModalEditarCodigoFuncionario();
@@ -2186,33 +2213,17 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             }
         }
 
-
-        function popularSelectFiltroVendedor() { 
-            const filtroVendedorSelect = document.getElementById('filtroVendedor');
-            if (filtroVendedorSelect) {
-                const currentValue = filtroVendedorSelect.value; 
-                filtroVendedorSelect.innerHTML = '<option value="">Todos os Funcionários</option>';
-                funcionariosCache.forEach(f => { 
-                    const o = document.createElement('option');
-                    o.value = f.id;
-                    o.textContent = f.nome;
-                    filtroVendedorSelect.appendChild(o);
-                });
-                if (currentValue) filtroVendedorSelect.value = currentValue; 
-            }
-        }
-
-
         // --- CADASTRO DE FORNECEDORES ---
         const formCadastrarFornecedor = document.getElementById('formCadastrarFornecedor');
         formCadastrarFornecedor.addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             const nome = document.getElementById('fornecedorNome').value;
             const contato = document.getElementById('fornecedorContato').value;
             const tipoMaterial = document.getElementById('fornecedorMaterial').value;
             if (!nome.trim()) { exibirMensagem("O nome do fornecedor é obrigatório.", "warning"); return; }
             try { 
-                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/fornecedores`), { 
+                // Caminho compartilhado para fornecedores
+                await addDoc(collection(db, `artifacts/${shopInstanceAppId}/fornecedores`), { 
                     nome, contato, tipoMaterial, criadoEm: Timestamp.now() 
                 }); 
                 exibirMensagem('Fornecedor registado!', 'success'); formCadastrarFornecedor.reset();
@@ -2220,8 +2231,9 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         });
 
         function carregarFornecedores() {
-            if (!userId) return; 
-            const q = query(collection(db, `artifacts/${appId}/users/${userId}/fornecedores`)); 
+            if (!auth.currentUser) return; 
+            // Caminho compartilhado para fornecedores
+            const q = query(collection(db, `artifacts/${shopInstanceAppId}/fornecedores`)); 
             onSnapshot(q, (snap) => {
                 const lista = document.getElementById('listaFornecedores');
                 if (lista) lista.innerHTML = ''; 
@@ -2250,7 +2262,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                                 const parts = whatsappNumber.split('55');
                                 if(parts.length > 1) whatsappNumber = '55' + parts.pop();
                             }
-
 
                             contatoDisplay = `<a href="https://wa.me/${whatsappNumber}" target="_blank" class="text-green-500 hover:text-green-600 hover:underline inline-flex items-center">
                                                   <i class="fab fa-whatsapp mr-1.5"></i> ${f.contato}
@@ -2387,7 +2398,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
 
         document.getElementById('formNovoPedido').addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!userId) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
+            e.preventDefault(); if (!auth.currentUser) { exibirMensagem("Utilizador não autenticado.", "error"); return; }
             
             editingOrderId = document.getElementById('editingOrderIdField').value; 
 
@@ -2466,7 +2477,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                  return;
              }
 
-
             const pedidoData = {
                 clienteId:cId, clienteNome:cN, vendedorId:vId, vendedorNome:vN, 
                 pagamentos: pagamentos, 
@@ -2475,8 +2485,10 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             };
 
             try{
+                // Caminho compartilhado para pedidos
+                const pedidosCollectionPath = `artifacts/${shopInstanceAppId}/pedidos`;
                 if (editingOrderId) {
-                    const pedidoRef = doc(db, `artifacts/${appId}/users/${userId}/pedidos`, editingOrderId);
+                    const pedidoRef = doc(db, pedidosCollectionPath, editingOrderId);
                     const originalPedidoDoc = todosOsPedidosCache.find(p => p.id === editingOrderId);
                     pedidoData.dataPedido = originalPedidoDoc?.dataPedido || Timestamp.now(); 
                     pedidoData.numeroPedido = originalPedidoDoc?.numeroPedido || `PED-${Date.now().toString().slice(-6)}`;
@@ -2486,7 +2498,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 } else {
                     pedidoData.dataPedido = Timestamp.now();
                     pedidoData.numeroPedido = `PED-${Date.now().toString().slice(-6)}`;
-                    await addDoc(collection(db,`artifacts/${appId}/users/${userId}/pedidos`), pedidoData);
+                    await addDoc(collection(db, pedidosCollectionPath), pedidoData);
                     exibirMensagem('Pedido guardado com sucesso!', 'success');
                 }
                 
@@ -2539,7 +2551,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 }
             }
 
-
             let pedidosFiltrados = [...todosOsPedidosCache]; 
 
             if (filtroNomeCliente) {
@@ -2575,7 +2586,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             } else if (filtroStatusPedido) { 
                 pedidosFiltrados = pedidosFiltrados.filter(p => p.status === filtroStatusPedido);
             }
-
 
             if (filtroVendedorId) {
                 pedidosFiltrados = pedidosFiltrados.filter(p => p.vendedorId === filtroVendedorId);
@@ -2629,7 +2639,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                     pagamentosInfo = p.pagamentos.map(pg => `${pg.forma} (R$ ${pg.valorPago.toFixed(2).replace('.',',')})`).join(', ');
                 }
 
-
                 d.innerHTML=`
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
                         <div>
@@ -2655,13 +2664,12 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
 
         function carregarUltimosPedidos() {
-            if (!userId) return; 
+            if (!auth.currentUser) return; 
             const tbody = document.getElementById('ultimosPedidosTableBody'); 
             if (!tbody) return; 
             
             tbody.innerHTML = ''; 
 
-            // Aplicar ordenação padrão (mais recentes primeiro) para o dashboard
             const pedidosOrdenadosDashboard = [...todosOsPedidosCache].sort((a, b) => (b.dataPedido?.toMillis() || 0) - (a.dataPedido?.toMillis() || 0));
             const pedsParaDashboard = pedidosOrdenadosDashboard.slice(0,5);
 
@@ -2698,8 +2706,9 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         }
 
         function carregarTodosPedidos() { 
-            if(!userId)return; 
-            const q=query(collection(db,`artifacts/${appId}/users/${userId}/pedidos`));
+            if(!auth.currentUser)return; 
+            // Caminho compartilhado para pedidos
+            const q=query(collection(db,`artifacts/${shopInstanceAppId}/pedidos`));
             onSnapshot(q,(snap)=>{
                 todosOsPedidosCache = []; 
                 snap.forEach(doc=>todosOsPedidosCache.push({id:doc.id,...doc.data()}));
@@ -2778,7 +2787,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             editingOrderId = pedidoObj.id; 
             document.getElementById('editingOrderIdField').value = pedidoObj.id;
 
-
             document.getElementById('formNovoPedido').reset(); 
             document.getElementById('itensPedidoContainer').innerHTML = ''; 
             document.getElementById('pagamentosContainer').innerHTML = ''; 
@@ -2788,7 +2796,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
             document.getElementById('pedidoClienteSearch').value = pedidoObj.clienteNome || "";
             document.getElementById('pedidoClienteId').value = pedidoObj.clienteId || "";
             document.getElementById('pedidoClienteResultados').classList.add('hidden');
-
 
             document.getElementById('pedidoVendedor').value = pedidoObj.vendedorId || "";
             document.getElementById('pedidoStatus').value = pedidoObj.status || "Aguardando Aprovação";
@@ -2854,7 +2861,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
                 });
             }
 
-
             atualizarValorTotalPedido(); 
 
             document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-save mr-1.5"></i>Atualizar Pedido';
@@ -2864,7 +2870,7 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
         // --- EXCLUSÃO DE PEDIDO ---
         window.excluirPedido = async (pedidoId) => { 
-            if (!userId || !pedidoId) {
+            if (!auth.currentUser || !pedidoId) {
                 exibirMensagem("Erro: ID do pedido ou utilizador inválido.", "error");
                 return;
             }
@@ -2873,12 +2879,12 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
 
             abrirConfirmDeleteModal(`Tem certeza que deseja excluir o pedido ${numeroPedido}? Esta ação não pode ser desfeita.`, async () => {
                 try {
-                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/pedidos`, pedidoId));
+                    // Caminho compartilhado para pedidos
+                    await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId));
                     exibirMensagem('Pedido excluído com sucesso!', 'success');
+                    // Atualiza a lista de pedidos do cliente se estiver visível (não mudou muito aqui, pois o cache será atualizado)
                     if (activeSectionId === 'cadastrarCliente' && clienteSelecionadoId) {
-                        const clienteDoPedidoExcluido = todosOsPedidosCache.find(p => p.id === pedidoId)?.clienteId;
-                        if (clienteDoPedidoExcluido === clienteSelecionadoId) {
-                        }
+                         exibirDetalhesClienteEProcurarPedidos(clienteSelecionadoId);
                     }
                 } catch (error) {
                     console.error("Erro ao excluir pedido: ", error);
@@ -2888,7 +2894,6 @@ const firebaseConfig = { // <-- Este é o objeto que você copiou do Firebase
         }
 
         // Inicialização
-        
         const produtoTipoPrecoEl = document.getElementById('produtoTipoPreco');
         if (produtoTipoPrecoEl) { 
              togglePrecoFields(); 
