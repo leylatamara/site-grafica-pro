@@ -13,8 +13,9 @@
             /* Variáveis do tema Interativo (escuro com gradientes) */
             --interactive-font-family: 'Inter', sans-serif;
             --interactive-bg-dark-primary: #1a1a2e; /* Fundo principal da aplicação */
-            --interactive-bg-dark-secondary: #24283b; /* Fundo de containers de seção */
+            --interactive-bg-dark-secondary: #24283b; /* Fundo de containers de seção, barra de info usuário */
             --interactive-bg-dark-tertiary: #2a2f45; /* Fundo para tabelas/elementos destacados */
+            --interactive-header-top-bg: #2c3e50; /* Fundo da barra do topo */
             
             --interactive-bg-gradient-main: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); /* Para cards principais, menu */
             --interactive-bg-gradient-alt: linear-gradient(135deg, #2575fc 0%, #5a89e0 100%); /* Para submenus, modais */
@@ -48,15 +49,12 @@
             --interactive-shadow-md: 0 8px 15px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.15);
             --interactive-shadow-lg: 0 15px 30px rgba(0,0,0,0.4), 0 10px 15px rgba(0,0,0,0.3);
             --interactive-shadow-xl: 0 20px 40px rgba(0,0,0,0.5), 0 12px 20px rgba(0,0,0,0.35);
-
-            /* Manter variáveis do Azure Flow para compatibilidade, mas serão menos usadas */
-            --color-primary-original: theme('colors.sky.600');
         }
 
         body {
             font-family: 'Poppins', sans-serif; 
-            background-color: var(--color-bg-app-original); 
-            color: var(--color-text-main-original); 
+            background-color: var(--interactive-bg-dark-primary); /* Sempre fundo escuro */
+            color: var(--interactive-text-light-secondary); 
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             margin: 0;
@@ -68,10 +66,8 @@
         }
         body.app-visible {
             font-family: var(--interactive-font-family);
-            background-color: var(--interactive-bg-dark-primary);
-            color: var(--interactive-text-light-secondary);
             display: block; 
-            padding: 0; /* Padding geral do body será controlado pelo JS, considerando menu E notificação */
+            padding: 0; 
             box-sizing: border-box;
         }
         
@@ -99,13 +95,77 @@
         #loginScreen p#loginErrorMessage.hidden { display: none; }
 
         /* Header Superior (Logotipo e Sair) */
-        .exo-menu-container .header-top-row { background-color: #2c3e50; color: var(--interactive-text-light-primary); padding: 0.75rem 1rem; border-bottom: 1px solid #34495e; display: flex; justify-content: space-between; align-items: center; }
-        .exo-menu-container .header-top-row .site-title { color: #ecf0f1; font-weight: 600; font-family: var(--interactive-font-family); } /* Fonte Inter */
-        .exo-menu-container .header-top-row .actions-area #logoutButton { background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ecf0f1; font-family: var(--interactive-font-family);}
-        .exo-menu-container .header-top-row .actions-area #logoutButton:hover { background-color: rgba(255,255,255,0.2); }
+        .exo-menu-container .header-top-row { 
+            background-color: var(--interactive-header-top-bg); 
+            color: var(--interactive-text-light-primary); 
+            padding: 0.75rem 1.5rem; /* Aumentado padding lateral */
+            border-bottom: 1px solid #34495e; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            height: 60px; /* Altura fixa para a barra do topo */
+            box-sizing: border-box;
+        }
+        .exo-menu-container .header-top-row .logo-area { flex-shrink: 0; }
+        .exo-menu-container .header-top-row .site-title { 
+            color: #ecf0f1; 
+            font-weight: 600; 
+            font-family: var(--interactive-font-family); 
+            font-size: 1.25rem; /* Tamanho do título */
+            text-align: center;
+            flex-grow: 1; /* Permite que o título centralize corretamente */
+        }
+        .exo-menu-container .header-top-row .actions-area { 
+            flex-shrink: 0; 
+            width: auto; /* Ajustar para conteúdo */
+        }
+        .exo-menu-container .header-top-row .actions-area #logoutButton { 
+            background-color: var(--interactive-button-secondary-bg); 
+            border: 1px solid var(--interactive-button-secondary-border); 
+            color: var(--interactive-text-light-secondary); 
+            font-family: var(--interactive-font-family);
+            padding: 0.5rem 1rem; /* Padding ajustado */
+            font-size: 0.875rem; /* Tamanho de fonte ajustado */
+            border-radius: 8px;
+        }
+        .exo-menu-container .header-top-row .actions-area #logoutButton:hover { 
+            background-color: var(--interactive-button-secondary-hover-bg); 
+            color: var(--interactive-text-light-primary);
+        }
+
+        /* NOVA BARRA DE INFORMAÇÕES DO USUÁRIO */
+        .exo-menu-container .user-info-bar {
+            background-color: var(--interactive-bg-dark-secondary);
+            color: var(--interactive-text-light-secondary);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* Para responsividade */
+            gap: 1rem;
+            font-family: var(--interactive-font-family);
+            border-bottom: 1px solid var(--interactive-border-color-soft); /* Linha sutil abaixo */
+        }
+        .exo-menu-container .user-info-bar #loggedInUserNameDisplay {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--interactive-text-light-primary);
+        }
+        .exo-menu-container .user-info-bar .user-stats {
+            display: flex;
+            gap: 1.5rem; /* Espaço entre as estatísticas */
+            font-size: 0.875rem;
+        }
+        .exo-menu-container .user-info-bar .user-stats span {
+            color: var(--interactive-text-muted);
+        }
+        .exo-menu-container .user-info-bar .user-stats strong {
+            color: var(--interactive-text-light-primary);
+            font-weight: 500;
+        }
         
         /* Barra de Menu Principal (com gradiente) */
-        .exo-menu-container .menu-bar-wrapper { background: var(--interactive-bg-gradient-main); padding: 10px 20px; border-radius: 10px; box-shadow: var(--interactive-shadow-md); margin: 10px 0; display: block; font-family: var(--interactive-font-family); position: relative; }
+        .exo-menu-container .menu-bar-wrapper { background: var(--interactive-bg-gradient-main); padding: 10px 20px; border-radius: 0 0 10px 10px; /* Arredondar apenas embaixo se conectado visualmente */ box-shadow: var(--interactive-shadow-md); margin: 0; display: block; font-family: var(--interactive-font-family); position: relative; }
         .exo-menu-container .menu-bar-wrapper ul.exo-menu { list-style: none; padding: 0; margin: 0; display: flex; justify-content: center; gap: 8px; }
         .exo-menu-container .menu-bar-wrapper ul.exo-menu > li { position: relative; }
         .exo-menu-container .menu-bar-wrapper ul.exo-menu > li > a,
@@ -137,6 +197,13 @@
         .exo-menu-container .menu-bar-wrapper .toggle-menu { display: none; color: var(--interactive-text-light-primary); border: 1px solid var(--interactive-border-color-medium); padding: 8px 10px; border-radius: 6px; position: absolute; top: 50%; right: 20px; transform: translateY(-50%); cursor: pointer; }
         .exo-menu-container .menu-bar-wrapper .toggle-menu:hover { background-color: rgba(255,255,255,0.1); }
         @media (max-width: 768px) {
+            .exo-menu-container .header-top-row { flex-direction: column; height: auto; gap: 0.5rem; padding: 0.75rem; }
+            .exo-menu-container .header-top-row .site-title { order: -1; /* Colocar o título no topo em mobile */ margin-bottom: 0.5rem; font-size: 1.1rem;}
+            .exo-menu-container .header-top-row .logo-area { order: -2; margin-bottom: 0.5rem; }
+            .exo-menu-container .header-top-row .actions-area { width: 100%; text-align: center; margin-top: 0.5rem; }
+            .exo-menu-container .user-info-bar { flex-direction: column; align-items: flex-start; text-align: left; padding: 0.75rem; }
+            .exo-menu-container .user-info-bar .user-stats { flex-direction: column; gap: 0.5rem; align-items: flex-start;}
+
             .exo-menu-container .menu-bar-wrapper { padding: 10px; margin: 5px 0; } 
             .exo-menu-container .menu-bar-wrapper .toggle-menu { display: block; }
             .exo-menu-container .menu-bar-wrapper ul.exo-menu { display: none; flex-direction: column; align-items: stretch; width: 100%; gap: 5px; padding-top: 10px; }
@@ -146,64 +213,26 @@
             .exo-menu-container .menu-bar-wrapper ul.drop-down-ul { position: static; width: 100%; box-shadow: none; border-radius: 6px; margin-top: 5px; background: rgba(0,0,0,0.15); opacity: 1; visibility: visible; transform: none; display: none; padding: 5px; }
             .exo-menu-container .menu-bar-wrapper li.drop-down.open > ul.drop-down-ul { display: block; }
             .exo-menu-container .menu-bar-wrapper ul.drop-down-ul li a { padding: 10px 15px; }
-            .exo-menu-container .header-top-row .site-title { font-size: 1rem; } .exo-menu-container .header-top-row .logo-area img { height: 1.75rem; } .exo-menu-container .header-top-row .actions-area { width: auto; } .exo-menu-container .header-top-row .actions-area #logoutButton { padding: 0.3rem 0.6rem; font-size: 0.75rem; } .exo-menu-container .header-top-row { padding-left: 10px; padding-right: 10px; }
         }
 
         /* Container de Conteúdo Principal da Aplicação */
-        .main-layout {
-             width: 100%;
-        }
-        .content-area { 
-            padding: 20px 0; 
-            width: 100%;
-        }
-
-        /* Seções de Conteúdo (Forms, Cadastros, etc.) */
-        .main-content-section.interactive-theme {
-            background-color: var(--interactive-bg-dark-secondary);
-            color: var(--interactive-text-light-secondary);
-            padding: 20px; 
-            border-radius: 16px;
-            box-shadow: var(--interactive-shadow-lg);
-            margin-bottom: 2rem;
-        }
-        .main-content-section.interactive-theme:hover {
-             box-shadow: var(--interactive-shadow-xl);
-        }
+        .main-layout { width: 100%; }
+        .content-area {  padding: 20px 0; width: 100%;}
+        .main-content-section.interactive-theme { background-color: var(--interactive-bg-dark-secondary); color: var(--interactive-text-light-secondary); padding: 20px; border-radius: 16px; box-shadow: var(--interactive-shadow-lg); margin-bottom: 2rem; }
+        .main-content-section.interactive-theme:hover { box-shadow: var(--interactive-shadow-xl); }
         .main-content-section.interactive-theme h2,
         .main-content-section.interactive-theme h3,
-        .main-content-section.interactive-theme h4 {
-            color: var(--interactive-text-light-primary);
-            border-bottom-color: var(--interactive-border-color-soft);
-        }
-        .main-content-section.interactive-theme .label-text {
-            color: var(--interactive-text-muted);
-            font-weight: 500; 
-        }
+        .main-content-section.interactive-theme h4 { color: var(--interactive-text-light-primary); border-bottom-color: var(--interactive-border-color-soft); }
+        .main-content-section.interactive-theme .label-text { color: var(--interactive-text-muted); font-weight: 500; }
         .main-content-section.interactive-theme .input-field,
-        .main-content-section.interactive-theme select.input-field { 
-            background-color: var(--interactive-input-bg);
-            border: 1px solid var(--interactive-input-border);
-            color: var(--interactive-text-light-primary);
-            border-radius: 8px;
-            box-shadow: none;
-            padding: 10px 14px; 
-        }
-        .main-content-section.interactive-theme .input-field::placeholder {
-            color: var(--interactive-text-muted);
-            opacity: 0.8;
-        }
+        .main-content-section.interactive-theme select.input-field { background-color: var(--interactive-input-bg); border: 1px solid var(--interactive-input-border); color: var(--interactive-text-light-primary); border-radius: 8px; box-shadow: none; padding: 10px 14px; }
+        .main-content-section.interactive-theme .input-field::placeholder { color: var(--interactive-text-muted); opacity: 0.8; }
         .main-content-section.interactive-theme .input-field:focus,
-        .main-content-section.interactive-theme select.input-field:focus {
-            background-color: rgba(255,255,255,0.1);
-            border-color: var(--interactive-input-focus-border);
-            box-shadow: 0 0 0 3px var(--interactive-input-focus-shadow);
-        }
+        .main-content-section.interactive-theme select.input-field:focus { background-color: rgba(255,255,255,0.1); border-color: var(--interactive-input-focus-border); box-shadow: 0 0 0 3px var(--interactive-input-focus-shadow); }
         .main-content-section.interactive-theme .input-field[readonly] { background-color: rgba(255,255,255,0.04) !important; color: var(--interactive-text-muted) !important; cursor: not-allowed; }
         .main-content-section.interactive-theme .input-field[readonly].text-\[\!var\(--color-primary\)\] { color: var(--interactive-text-light-primary) !important; }
         .main-content-section.interactive-theme .input-field[readonly].text-green-600 { color: theme('colors.green.400') !important; }
         .main-content-section.interactive-theme .input-field[readonly].text-red-600 { color: theme('colors.red.400') !important; }
-        
         .main-content-section.interactive-theme .btn { font-family: var(--interactive-font-family); border-radius: 8px; }
         .main-content-section.interactive-theme .btn:hover { transform: translateY(-2px); }
         .main-content-section.interactive-theme .btn-primary { background-color: var(--interactive-button-primary-bg); color: var(--interactive-text-light-primary); border: 1px solid var(--interactive-button-primary-border); }
@@ -312,7 +341,7 @@
         .modal-overlay.interactive-theme-modal .btn-secondary { background-color: var(--interactive-button-secondary-bg); color: var(--interactive-text-muted); border: 1px solid var(--interactive-button-secondary-border); }
         .modal-overlay.interactive-theme-modal .btn-secondary:hover { background-color: var(--interactive-button-secondary-hover-bg); color: var(--interactive-text-light-primary); }
         
-        /* --- Notification Bar Styles (NOVO) --- */
+        /* Notification Bar Styles */
         .notification-bar {
             position: fixed;
             top: 0;
@@ -355,9 +384,8 @@
         .notification-bar.info #notificationIcon i { color: theme('colors.sky.100'); }
         .notification-bar.confirm-delete { background: linear-gradient(135deg, theme('colors.red.700') 0%, theme('colors.red.500') 100%); }
         .notification-bar.confirm-delete #notificationIcon i { color: theme('colors.red.100'); }
-        .notification-bar.confirm-delete #notificationActions .btn-confirm-action { background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); } /* Vermelho mais sutil para confirmação */
+        .notification-bar.confirm-delete #notificationActions .btn-confirm-action { background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); } 
         .notification-bar.confirm-delete #notificationActions .btn-confirm-action:hover { background-color: rgba(255,255,255,0.3); }
-        /* --- FIM Notification Bar Styles --- */
         
         .main-content-section.interactive-theme #pedidoClienteResultados { background-color: #3a3163; border-color: var(--interactive-border-color-medium); }
         .main-content-section.interactive-theme #pedidoClienteResultados div { color: var(--interactive-text-muted); }
@@ -402,15 +430,23 @@
 
     <!-- Container Principal da Aplicação -->
     <div id="appContainer" class="hidden">
-        <div class="exo-menu-container">
-            <div class="header-top-row flex justify-between items-center px-4 sm:px-6">
-                <div class="logo-area flex-shrink-0 flex items-center">
+        <div class="exo-menu-container"> <!-- Este é o container geral do cabeçalho agora -->
+            <div class="header-top-row flex justify-between items-center">
+                <div class="logo-area flex-shrink-0">
                     <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8">
-                    <span id="loggedInUserNameDisplay" class="ml-3 text-slate-100 font-semibold hidden"></span>
                 </div>
                 <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
                 <div class="actions-area flex-shrink-0"> 
                     <button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button>
+                </div>
+            </div>
+
+            <div class="user-info-bar">
+                <span id="loggedInUserNameDisplay" class="font-semibold"></span>
+                <div class="user-stats">
+                    <span>Pedidos Mês: <strong id="userPedidosMes">0</strong></span>
+                    <span>Em Finalização: <strong id="userPedidosFinalizacao">0</strong></span>
+                    <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
                 </div>
             </div>
         
@@ -926,7 +962,7 @@
         </div>
     </div>
 
-    <!-- Modal Universal -->
+    <!-- Modal Universal (DEPRECATED - use notification bar instead) -->
     <div id="universalModalOverlay" class="modal-overlay hidden">
         <div id="universalModalContent" class="modal-content-wrapper max-w-md">
             {/* O conteúdo será injetado aqui pelo JavaScript */}
@@ -981,7 +1017,6 @@
 
 
         async function criarDadosIniciaisSeNaoExistirem() {
-            // ... (código existente, sem alterações aqui)
             if (!auth.currentUser) { return; }
             const clientesPath = `artifacts/${shopInstanceAppId}/clientes`;
             let clientesSnapshot = await getDocs(query(collection(db, clientesPath), limit(1)));
@@ -1126,12 +1161,15 @@
                     loggedInUserName = storedName;
                     
                     const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-                    const logoImg = document.querySelector('.logo-area img');
-                    if (loggedInUserNameDisplay && logoImg) {
+                    if (loggedInUserNameDisplay) {
                         loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
-                        logoImg.classList.add('hidden');
-                        loggedInUserNameDisplay.classList.remove('hidden');
                     }
+                    // Placeholder para as estatísticas do usuário - o ideal é buscar do Firestore
+                    document.getElementById('userPedidosMes').textContent = '5'; // Exemplo
+                    document.getElementById('userPedidosFinalizacao').textContent = '2'; // Exemplo
+                    document.getElementById('userPedidosFinalizados').textContent = '10'; // Exemplo
+
+
                     document.body.classList.add('app-visible'); 
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('appContainer').classList.remove('hidden');
@@ -1207,8 +1245,7 @@
             const loginErrorMessage = document.getElementById('loginErrorMessage');
             const codigoAcessoInput = document.getElementById('codigoAcesso');
             const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-            const logoImg = document.querySelector('.logo-area img');
-
+            
             loginErrorMessage.classList.add('hidden'); 
             if (!auth.currentUser) { loginErrorMessage.textContent = "Aguardando autenticação. Tente novamente."; loginErrorMessage.classList.remove('hidden'); return; }
 
@@ -1225,7 +1262,12 @@
                     localStorage.setItem('loggedInUserRole', loggedInUserRole);
                     localStorage.setItem('loggedInUserName', loggedInUserName);
 
-                    if (loggedInUserNameDisplay && logoImg) { loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`; logoImg.classList.add('hidden'); loggedInUserNameDisplay.classList.remove('hidden'); }
+                    if (loggedInUserNameDisplay) { loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`; }
+                     // Placeholder para as estatísticas do usuário
+                    document.getElementById('userPedidosMes').textContent = '5'; 
+                    document.getElementById('userPedidosFinalizacao').textContent = '2'; 
+                    document.getElementById('userPedidosFinalizados').textContent = '10';
+
                     document.body.classList.add('app-visible'); 
                     loginScreen.classList.add('hidden'); appContainer.classList.remove('hidden'); codigoAcessoInput.value = ''; 
                     configurarAcessoPorCargo(loggedInUserRole); setActiveMenuLink('telaInicial'); mostrarSecao('telaInicial', false); ajustarPaddingBody();
@@ -1241,8 +1283,7 @@
             localStorage.removeItem('loggedInUserName');
 
             const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-            const logoImg = document.querySelector('.logo-area img');
-            if (loggedInUserNameDisplay && logoImg) { loggedInUserNameDisplay.textContent = ''; loggedInUserNameDisplay.classList.add('hidden'); logoImg.classList.remove('hidden'); }
+             if (loggedInUserNameDisplay) { loggedInUserNameDisplay.textContent = '';}
             document.body.classList.remove('app-visible');
             document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('appContainer').classList.add('hidden');
             document.getElementById('codigoAcesso').value = ''; 
@@ -1448,7 +1489,7 @@
             }
             
             notificationBar.classList.add('visible');
-            ajustarPaddingBody(); // Ajusta o padding do body para acomodar a barra
+            ajustarPaddingBody(); 
         }
 
         function hideNotification() {
@@ -1459,7 +1500,6 @@
             if (notificationTimeout) {
                 clearTimeout(notificationTimeout);
             }
-             // Pequeno delay para permitir a animação de saída antes de reajustar o padding
             setTimeout(ajustarPaddingBody, 400);
         }
         window.exibirMensagem = (mensagem, tipo = 'info', duracao = 5000) => { 
