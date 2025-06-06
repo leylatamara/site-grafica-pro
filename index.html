@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -64,12 +63,13 @@
             justify-content: center;
             align-items: center; 
             min-height: 100vh;
-            padding: 0; /* Removido padding fixo, será controlado por JS */
+            padding: 0; 
             box-sizing: border-box;
         }
         body.app-visible {
             font-family: var(--interactive-font-family);
-            display: block; 
+            display: flex; /* Alterado para flex para o rodapé */
+            flex-direction: column; /* Empilhar conteúdo e rodapé */
             /* Padding será definido dinamicamente por ajustarPaddingBody() */
         }
         
@@ -98,11 +98,11 @@
 
         /* Header Superior (Logotipo e Sair) */
         .exo-menu-container {
-            position: fixed; /* Torna o cabeçalho fixo no topo */
+            position: fixed; 
             top: 0;
             left: 0;
             width: 100%;
-            z-index: 1000; /* Garante que fique acima de outros conteúdos, exceto modais */
+            z-index: 1000; 
             box-shadow: var(--interactive-shadow-md);
         }
         .exo-menu-container .header-top-row { 
@@ -226,8 +226,9 @@
         }
 
         /* Container de Conteúdo Principal da Aplicação */
-        .main-layout { width: 100%; }
-        .content-area {  padding: 20px 0; width: 100%;}
+        .main-layout { width: 100%; flex-grow: 1; /* Para ocupar o espaço restante */ }
+        .content-area {  padding: 20px; width: 100%; box-sizing: border-box;} /* Adicionado padding lateral ao content-area */
+        
         .main-content-section.interactive-theme { background-color: var(--interactive-bg-dark-secondary); color: var(--interactive-text-light-secondary); padding: 20px; border-radius: 16px; box-shadow: var(--interactive-shadow-lg); margin-bottom: 2rem; }
         .main-content-section.interactive-theme:hover { box-shadow: var(--interactive-shadow-xl); }
         .main-content-section.interactive-theme h2,
@@ -411,6 +412,25 @@
         .main-content-section.interactive-theme #pedidosDoClienteLista .p-2\.5 { border-bottom-color: var(--interactive-border-color-soft) !important; }
         .main-content-section.interactive-theme #pedidosDoClienteLista .font-medium { color: theme('colors.purple.300') !important; }
         #appContainer .main-layout { /* O padding-top é controlado pelo JS (ajustarPaddingBody) */ }
+
+        /* NOVO RODAPÉ */
+        .site-footer {
+            background-color: var(--interactive-header-top-bg); /* Mesmo fundo da barra do topo */
+            color: var(--interactive-text-muted);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            font-family: var(--interactive-font-family);
+            font-size: 0.875rem;
+            border-top: 1px solid #34495e;
+            margin-top: auto; /* Empurra o rodapé para baixo se o conteúdo for curto */
+        }
+        .site-footer p {
+            margin: 0.25rem 0;
+        }
+        .site-footer strong {
+            color: var(--interactive-text-light-secondary);
+        }
+
     </style>
 </head>
 <body>
@@ -839,7 +859,7 @@
 
                 <section id="visualizarPedidos" class="main-content-section interactive-theme hidden">
                      <h2 class="text-xl font-semibold mb-5 pb-3 border-b">Todos os Pedidos</h2>
-                    <div class="mb-6 p-4 border rounded-lg bg-[rgba(255,255,255,0.05)]">
+                    <div class="mb-6 p-4 border rounded-lg bg-[rgba(255,255,255,0.05)]"> {/* Fundo sutil para filtros */}
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 items-end">
                             <div>
                                 <label for="filtroNomeCliente" class="label-text text-xs">Nome do Cliente:</label>
@@ -916,6 +936,10 @@
                 </section>
             </main>
         </div>
+        <footer class="site-footer">
+            <p>Sistema de Gestão PRO para Gráficas: Crie pedidos, controle clientes, produtos e o fluxo de produção de forma eficiente.</p>
+            <p><strong>Criado por: Jeffweb3</strong></p>
+        </footer>
     </div>
 
     <!-- Modal Novo Cliente Rápido -->
@@ -1028,7 +1052,6 @@
 
 
         async function criarDadosIniciaisSeNaoExistirem() {
-            // ... (código existente, sem alterações aqui)
             if (!auth.currentUser) { return; }
             const clientesPath = `artifacts/${shopInstanceAppId}/clientes`;
             let clientesSnapshot = await getDocs(query(collection(db, clientesPath), limit(1)));
@@ -1335,10 +1358,18 @@
                     totalOffset += notificationBar.offsetHeight;
                 }
                 bodyEl.style.paddingTop = totalOffset + 'px';
-                bodyEl.style.paddingLeft = '20px'; 
-                bodyEl.style.paddingRight = '20px';
-                bodyEl.style.paddingBottom = '20px'; 
-            } else {
+                // Aplicar padding lateral e inferior apenas se o app estiver visível e NÃO for a tela de login
+                if (bodyEl.classList.contains('app-visible') && !document.getElementById('loginScreen').classList.contains('hidden')) {
+                    bodyEl.style.paddingLeft = '20px'; 
+                    bodyEl.style.paddingRight = '20px';
+                    bodyEl.style.paddingBottom = '20px'; 
+                } else {
+                     bodyEl.style.paddingLeft = '0px'; 
+                    bodyEl.style.paddingRight = '0px';
+                    bodyEl.style.paddingBottom = '0px';
+                }
+
+            } else { // Para tela de login
                 bodyEl.style.paddingTop = '0px'; 
                 bodyEl.style.paddingLeft = '0px'; 
                 bodyEl.style.paddingRight = '0px';
@@ -1515,11 +1546,7 @@
             setTimeout(ajustarPaddingBody, 400);
         }
         window.exibirMensagem = (mensagem, tipo = 'info', duracao = 5000) => { 
-            let tituloNotificacao = "Informação";
-            if (tipo === 'success') tituloNotificacao = "Sucesso!";
-            else if (tipo === 'error') tituloNotificacao = "Erro!";
-            else if (tipo === 'warning') tituloNotificacao = "Atenção!";
-            
+            // Esta função agora usa a barra de notificação
             showNotification({ 
                 message: mensagem, 
                 type: tipo, 
@@ -1528,6 +1555,7 @@
         }
         // --- FIM FUNÇÕES DA BARRA DE NOTIFICAÇÃO ---
 
+        // --- MODAL FUNCTIONS (Agora com controle de scroll) ---
         function abrirModalEspecifico(overlayId, contentId) {
             const overlay = document.getElementById(overlayId); if (!overlay) return;
             originalBodyOverflowEspecifico = document.body.style.overflow; originalDocOverflowEspecifico = document.documentElement.style.overflow;
@@ -1548,6 +1576,9 @@
                 overlay.classList.remove('interactive-theme-modal'); 
             }, 250);
         }
+        // --- FIM MODAL FUNCTIONS ---
+
+
         window.abrirModalNovoClienteRapido = () => { const form = document.getElementById('formNovoClienteRapido'); if(form) form.reset(); abrirModalEspecifico('modalNovoClienteRapidoOverlay', 'modalNovoClienteRapidoContent'); };
         window.fecharModalNovoClienteRapido = () => fecharModalEspecifico('modalNovoClienteRapidoOverlay', 'modalNovoClienteRapidoContent');
         window.abrirModalEditarCodigoFuncionario=(fId,nome,cA)=>{ document.getElementById('funcionarioIdParaEditarCodigo').value=fId; document.getElementById('nomeFuncionarioParaEditarCodigo').textContent=`Funcionário: ${nome}`; document.getElementById('novoCodigoAcesso').value=cA||''; abrirModalEspecifico('modalEditarCodigoFuncionarioOverlay','modalEditarCodigoFuncionarioContent'); }
