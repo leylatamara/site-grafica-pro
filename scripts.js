@@ -200,9 +200,9 @@ onAuthStateChanged(auth, async (user) => {
             document.body.classList.add('app-visible'); 
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContainer').classList.remove('hidden');
+            
             configurarAcessoPorCargo(loggedInUserRole);
-            setActiveMenuLink('telaInicial');
-            mostrarSecao('telaInicial', false); 
+            setDefaultViewForRole(loggedInUserRole);
             ajustarPaddingBody();
         } else {
             document.body.classList.remove('app-visible');
@@ -269,6 +269,16 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+function setDefaultViewForRole(role) {
+    if (role === 'impressor' || role === 'producao') {
+        mostrarSecao('visualizarPedidos', false);
+        setActiveMenuLink('visualizarPedidos');
+    } else {
+        mostrarSecao('telaInicial', false);
+        setActiveMenuLink('telaInicial');
+    }
+}
+
 async function handleLogin(codigo) {
     const loginScreen = document.getElementById('loginScreen');
     const appContainer = document.getElementById('appContainer');
@@ -300,12 +310,29 @@ async function handleLogin(codigo) {
             atualizarEstatisticasUsuario();
 
             document.body.classList.add('app-visible'); 
-            loginScreen.classList.add('hidden'); appContainer.classList.remove('hidden'); codigoAcessoInput.value = ''; 
-            configurarAcessoPorCargo(loggedInUserRole); setActiveMenuLink('telaInicial'); mostrarSecao('telaInicial', false); ajustarPaddingBody();
+            loginScreen.classList.add('hidden'); 
+            appContainer.classList.remove('hidden'); 
+            codigoAcessoInput.value = ''; 
+            
+            configurarAcessoPorCargo(loggedInUserRole); 
+            setDefaultViewForRole(loggedInUserRole);
+            ajustarPaddingBody();
+
         } else {
-            loginErrorMessage.textContent = "Código inválido."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;
+            loginErrorMessage.textContent = "Código inválido."; 
+            loginErrorMessage.classList.remove('hidden'); 
+            loggedInUserRole = null; 
+            loggedInUserName = null; 
+            loggedInUserIdGlobal = null;
         }
-    } catch (error) { console.error("Erro login:", error); loginErrorMessage.textContent = "Erro. Tente novamente."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;}
+    } catch (error) { 
+        console.error("Erro login:", error); 
+        loginErrorMessage.textContent = "Erro. Tente novamente."; 
+        loginErrorMessage.classList.remove('hidden'); 
+        loggedInUserRole = null; 
+        loggedInUserName = null; 
+        loggedInUserIdGlobal = null;
+    }
 }
 
 function logout() {
@@ -333,7 +360,6 @@ function atualizarEstatisticasUsuario() {
     }
 
     let pedidosFiltrados = todosOsPedidosCache;
-    // Admin vê todos os pedidos, outros cargos veem apenas os seus.
     if (loggedInUserRole !== 'admin') {
         pedidosFiltrados = todosOsPedidosCache.filter(p => p.vendedorId === loggedInUserIdGlobal);
     }
@@ -369,7 +395,10 @@ function atualizarEstatisticasUsuario() {
 function configurarAcessoPorCargo(role) {
     document.querySelectorAll('.exo-menu > li, .exo-menu .drop-down-ul > li').forEach(item => {
         const acessoPermitido = item.dataset.roleAccess;
-        if (acessoPermitido) { item.classList.toggle('hidden', !(acessoPermitido === "all" || (role && acessoPermitido.includes(role)))); }
+        if (acessoPermitido) { 
+            const roles = acessoPermitido.split(',');
+            item.classList.toggle('hidden', !(acessoPermitido === "all" || (role && roles.includes(role)))); 
+        }
     });
     const cadastrosDropdown = document.querySelector('.exo-menu-container .menu-bar-wrapper li.drop-down'); 
     if (cadastrosDropdown) {
@@ -408,7 +437,7 @@ function ajustarPaddingBody() {
             bodyEl.style.paddingBottom = '0px';
         }
 
-    } else { // Para tela de login
+    } else {
         bodyEl.style.paddingTop = '0px'; 
         bodyEl.style.paddingLeft = '0px'; 
         bodyEl.style.paddingRight = '0px';
@@ -1192,3 +1221,11 @@ window.excluirPedido = async (pedidoId, numeroPedido) => {
     }); 
 }
 const produtoTipoPrecoEl = document.getElementById('produtoTipoPreco'); if (produtoTipoPrecoEl) togglePrecoFields(); 
+```
+
+---
+E aqui está o arquivo HTML principal, que também precisa ser atualizado no GitHub para refletir a mudança no `data-role-access`.
+
+
+```html
+
