@@ -1305,7 +1305,7 @@
                             largura = parseFloat((Math.random() * 2 + 0.5).toFixed(2)); altura = parseFloat((Math.random() * 2 + 0.5).toFixed(2));  
                             valorItem = largura * altura * (produtoAleatorio.precoMetro || 0) * quantidade;
                         } else { valorItem = (produtoAleatorio.precoUnidade || 0) * quantidade; }
-                        itensPedidoExemplo.push({ produtoId: produtoAleatorio.id, produtoNome: produtoAleatorio.nome, tipoProduto: produtoAleatorio.tipoPreco, quantidade, largura, altura, valorItem, concluido: false, concluidoPor: null, concluidoEm: null });
+                        itensPedidoExemplo.push({ produtoId: produtoAleatorio.id, produtoNome: produtoAleatorio.nome, tipoProduto: produtoAleatorio.tipoPreco, quantidade, largura, altura, valorItem, productionSteps: { impressao: { concluido: false }, acabamento: { concluido: false } } });
                         valorTotalPedidoExemplo += valorItem;
                     }
                     const pagamentosExemplo = []; const numPagamentos = Math.random() > 0.6 ? 2 : 1; let valorPagoTotalExemplo = 0;
@@ -1782,10 +1782,6 @@
         // --- MODAL FUNCTIONS (Sem bloqueio de scroll) ---
         function abrirModalEspecifico(overlayId, contentId) {
             const overlay = document.getElementById(overlayId); if (!overlay) return;
-            // originalBodyOverflowEspecifico = document.body.style.overflow; 
-            // originalDocOverflowEspecifico = document.documentElement.style.overflow;
-            // document.documentElement.style.overflow = 'hidden'; 
-            // document.body.style.overflow = 'hidden'; 
             overlay.classList.add('interactive-theme-modal'); 
             if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
             overlay.classList.remove('hidden');
@@ -1807,32 +1803,30 @@
                 content.classList.add('opacity-0', 'scale-95'); 
             }
             setTimeout(() => { 
-                overlay.classList.add('hidden'); 
-                // document.documentElement.style.overflow = originalDocOverflowEspecifico; 
-                // document.body.style.overflow = originalBodyOverflowEspecifico;           
+                overlay.classList.add('hidden');          
                 if (callback) callback(); 
                 overlay.classList.remove('interactive-theme-modal'); 
             }, 300); // tempo para transição
         }
         // --- FIM MODAL FUNCTIONS ---
 
-
         window.abrirModalNovoClienteRapido = () => { const form = document.getElementById('formNovoClienteRapido'); if(form) form.reset(); abrirModalEspecifico('modalNovoClienteRapidoOverlay', 'modalNovoClienteRapidoContent'); };
         window.fecharModalNovoClienteRapido = () => fecharModalEspecifico('modalNovoClienteRapidoOverlay', 'modalNovoClienteRapidoContent');
         window.abrirModalEditarCodigoFuncionario=(fId,nome,cA)=>{ document.getElementById('funcionarioIdParaEditarCodigo').value=fId; document.getElementById('nomeFuncionarioParaEditarCodigo').textContent=`Funcionário: ${nome}`; document.getElementById('novoCodigoAcesso').value=cA||''; abrirModalEspecifico('modalEditarCodigoFuncionarioOverlay','modalEditarCodigoFuncionarioContent'); }
         window.fecharModalEditarCodigoFuncionario=()=>fecharModalEspecifico('modalEditarCodigoFuncionarioOverlay','modalEditarCodigoFuncionarioContent');
         
-        window.toggleItemStatus = async (pedidoId, itemIndex, isChecked) => {
+        // CORREÇÃO: Função para alterar o estado de uma etapa de produção específica
+        window.toggleItemProductionStep = async (pedidoId, itemIndex, stepName, isChecked) => {
             if (!auth.currentUser) {
                 exibirMensagem("Sem permissão para alterar. Faça o login novamente.", "error");
                 return;
             }
-            const rolesPermitidas = ['producao', 'impressor'];
+            
+            const rolesPermitidas = ['producao', 'impressor', 'admin', 'designer'];
             if (!rolesPermitidas.includes(loggedInUserRole)) {
                 exibirMensagem("Não tem permissão para alterar o estado do item.", "error");
-                // Desfaz a mudança visual do checkbox
-                const checkbox = document.getElementById(`item-check-${pedidoId}-${itemIndex}`);
-                if (checkbox) checkbox.checked = !isChecked;
+                const printWindowCheckbox = window.open('', `Pedido: ${pedidoId}`)?.document.getElementById(`step-${stepName}-${pedidoId}-${itemIndex}`);
+                if (printWindowCheckbox) printWindowCheckbox.checked = !isChecked;
                 return;
             }
 
@@ -1842,22 +1836,29 @@
             if (pedidoParaAtualizar && pedidoParaAtualizar.itens[itemIndex] != null) {
                 const novosItens = [...pedidoParaAtualizar.itens];
                 const item = novosItens[itemIndex];
-                item.concluido = isChecked;
-
+                
+                if (!item.productionSteps) {
+                    item.productionSteps = {};
+                }
+                if (!item.productionSteps[stepName]) {
+                    item.productionSteps[stepName] = {};
+                }
+                
+                item.productionSteps[stepName].concluido = isChecked;
                 if (isChecked) {
-                    item.concluidoPor = loggedInUserName;
-                    item.concluidoEm = Timestamp.now();
+                    item.productionSteps[stepName].concluidoPor = loggedInUserName;
+                    item.productionSteps[stepName].concluidoEm = Timestamp.now();
                 } else {
-                    item.concluidoPor = null;
-                    item.concluidoEm = null;
+                    item.productionSteps[stepName].concluidoPor = null;
+                    item.productionSteps[stepName].concluidoEm = null;
                 }
                 
                 try {
                     await updateDoc(pedidoDocRef, { itens: novosItens });
-                    exibirMensagem(`Item ${itemIndex + 1} atualizado.`, 'success', 2000);
+                    exibirMensagem(`Etapa '${stepName}' do item ${itemIndex + 1} atualizada.`, 'success', 2000);
                 } catch (error) {
-                    console.error("Erro ao atualizar item do pedido:", error);
-                    exibirMensagem("Erro ao atualizar o item.", "error");
+                    console.error("Erro ao atualizar etapa de produção do item:", error);
+                    exibirMensagem("Erro ao atualizar a etapa de produção.", "error");
                 }
             } else {
                  exibirMensagem("Não foi possível encontrar o pedido ou o item para atualizar.", "error");
@@ -1890,7 +1891,7 @@
             const formatDate = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleDateString('pt-BR') : 'N/A'; };
             const formatDateTime = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'; };
             
-            const rolesPermitidasParaMarcar = ['producao', 'impressor', 'admin'];
+            const rolesPermitidasParaMarcar = ['producao', 'impressor', 'admin', 'designer'];
             const podeMarcarItens = loggedInUserRole && rolesPermitidasParaMarcar.includes(loggedInUserRole);
 
             let dataPedidoTexto = formatDateTime(pedido.dataPedido);
@@ -1905,33 +1906,51 @@
                  entregaHtml = `<p><strong>Entrega confirmada por:</strong> ${pedido.entreguePorNome} em ${formatDateTime(pedido.entregueEm)}</p>`;
             }
 
-
             let descricaoGeralHtml = pedido.descricaoGeral ? `<div class="section-title">Descrição Geral</div><p><strong>${pedido.descricaoGeral.replace(/\n/g, '<br>')}</strong></p>` : '';
 
+            // CORREÇÃO: Lógica para renderizar itens com etapas de produção separadas
             let itensHtml = pedido.itens?.length > 0 ? pedido.itens.map((item, index) => {
-                const isConcluido = item.concluido === true;
-                const checkboxId = `item-check-${pedido.id}-${index}`;
-                
                 const itemDesc = item.descricao ? `<br><small style="color: #555; padding-left: 15px;">&hookrightarrow; ${item.descricao}</small>` : '';
                 const dimensoes = item.tipoProduto === 'metro' && item.largura && item.altura ? ` (${item.largura.toFixed(2)}m x ${item.altura.toFixed(2)}m)` : '';
                 
-                const liOnclick = podeMarcarItens ? `onclick="document.getElementById('${checkboxId}').click()"` : '';
-
-                let infoSpan = '';
-                if (isConcluido && item.concluidoPor && item.concluidoEm) {
-                    const dataConclusao = formatDateTime(item.concluidoEm);
-                    const tooltipText = `Concluído por: ${item.concluidoPor} em ${dataConclusao}`;
-                    infoSpan = `<span class="info-icon" title="${tooltipText}">ⓘ</span>`;
-                }
+                const steps = item.productionSteps || { impressao: { concluido: false }, acabamento: { concluido: false } };
                 
-                return `
-                    <li class="${isConcluido ? 'completed' : ''}" ${liOnclick} data-interactive="${podeMarcarItens}">
-                        <input type="checkbox" id="${checkboxId}" 
-                               onchange="this.parentElement.classList.toggle('completed', this.checked); window.opener.toggleItemStatus('${pedido.id}', ${index}, this.checked)" 
-                               ${isConcluido ? 'checked' : ''} 
+                let stepsHtml = `<div class="production-steps">`;
+
+                // Etapa de Impressão
+                const impressaoConcluida = steps.impressao?.concluido;
+                const impressaoInfo = impressaoConcluida ? `<span class="info-icon" title="Por: ${steps.impressao.concluidoPor || 'N/A'} em ${formatDateTime(steps.impressao.concluidoEm) || 'N/A'}">ⓘ</span>` : '';
+                stepsHtml += `
+                    <span class="step">
+                        <input type="checkbox" id="step-impressao-${pedido.id}-${index}" 
+                               onchange="window.opener.toggleItemProductionStep('${pedido.id}', ${index}, 'impressao', this.checked)"
+                               ${impressaoConcluida ? 'checked' : ''}
                                ${!podeMarcarItens ? 'disabled' : ''}>
-                        <label for="${checkboxId}">${item.quantidade}x ${item.produtoNome}${dimensoes} - R$ ${item.valorItem.toFixed(2).replace('.', ',')}${itemDesc}</label>
-                        ${infoSpan}
+                        <label for="step-impressao-${pedido.id}-${index}">Impressão</label>
+                        ${impressaoInfo}
+                    </span>`;
+                
+                // Etapa de Acabamento
+                const acabamentoConcluido = steps.acabamento?.concluido;
+                const acabamentoInfo = acabamentoConcluido ? `<span class="info-icon" title="Por: ${steps.acabamento.concluidoPor || 'N/A'} em ${formatDateTime(steps.acabamento.concluidoEm) || 'N/A'}">ⓘ</span>` : '';
+                stepsHtml += `
+                    <span class="step">
+                        <input type="checkbox" id="step-acabamento-${pedido.id}-${index}" 
+                               onchange="window.opener.toggleItemProductionStep('${pedido.id}', ${index}, 'acabamento', this.checked)"
+                               ${acabamentoConcluido ? 'checked' : ''}
+                               ${!podeMarcarItens ? 'disabled' : ''}>
+                        <label for="step-acabamento-${pedido.id}-${index}">Acabamento</label>
+                        ${acabamentoInfo}
+                    </span>`;
+
+                stepsHtml += `</div>`;
+
+                return `
+                    <li>
+                        <div class="item-details">
+                            ${item.quantidade}x ${item.produtoNome}${dimensoes} - R$ ${item.valorItem.toFixed(2).replace('.', ',')}${itemDesc}
+                        </div>
+                        ${stepsHtml}
                     </li>`;
             }).join('') : '<li>Nenhum item.</li>';
 
@@ -1949,9 +1968,10 @@
             
             const valorRestanteCalculado = (pedido.valorTotal || 0) - totalPagoCalculado;
             
-            const conteudoHtml = `<html><head><title>Pedido: ${pedido.numeroPedido||'N/A'}</title><style>body{font-family:'Poppins',Arial,sans-serif;margin:20px;background-color:#f1f5f9;color:#334155;font-size:14px}:root{--color-primary: #0ea5e9; --color-text-main: #334155; --color-text-heading: #1e293b; --color-text-muted: #64748b; --color-border-soft: #e2e8f0; --color-border-medium: #cbd5e1; --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);}.container{max-width:700px;margin:auto;background-color:#fff;padding:25px;border-radius:12px;box-shadow:var(--shadow-lg);border:1px solid var(--color-border-soft)}.company-header{display:flex;align-items:center;margin-bottom:25px;padding-bottom:15px;border-bottom:1px solid var(--color-border-soft)}.company-header img{max-height:50px;margin-right:20px}.company-header .company-info p{margin:2px 0;font-size:.9em;color:var(--color-text-muted)}.company-header .company-info strong{color:var(--color-text-heading); font-weight:600;}h1{text-align:center;color:var(--color-primary);border-bottom:2px solid var(--color-primary);padding-bottom:10px;margin-bottom:25px;font-size:1.6em;font-weight:600}.section-title{font-size:1.15em;font-weight:600;color:var(--color-text-heading);margin-top:25px;margin-bottom:10px;border-bottom:1px solid var(--color-border-medium);padding-bottom:6px}p{margin-bottom:8px;line-height:1.65}strong{font-weight:500;color:var(--color-text-main)}ul{list-style:none;margin-left:0;padding-left:5px}li{margin-bottom:8px; display: flex; align-items: center;}li label{flex-grow:1;} li[data-interactive="true"]{cursor:pointer;}li input[type=checkbox]{display:none;}li::before{content:'⬜';margin-right:10px;font-size:1.2em;}li.completed::before{content:'✅';}li.completed label{color:#9ca3af;} .info-icon { margin-left: 10px; font-weight: bold; color: #64748b; cursor: help; font-size: 1.1em;} .total-section{margin-top:30px;padding-top:20px;border-top:2px solid var(--color-primary);text-align:right}.total-section p{font-size:1.25em;font-weight:600;color:var(--color-primary)}.payment-summary p{font-size:1.05em;margin-bottom:4px;text-align:right}.payment-summary strong{font-weight:600}.print-button-container{text-align:center;margin-top:30px}.print-button{background-color:var(--color-primary);color:white;padding:12px 24px;border:none;border-radius:8px;font-size:1em;cursor:pointer;transition:background-color .2s}.print-button:hover{background-color:#0284c7}.footer-note{font-size:.85em;color:var(--color-text-muted);text-align:center;margin-top:30px;padding-top:15px;border-top:1px solid var(--color-border-soft)}img.pedido-preview-print{max-width:100%;max-height:280px;display:block;margin:20px auto;border:1px solid var(--color-border-medium);border-radius:8px;page-break-inside:avoid;object-fit:contain}@media print{body{margin:0;padding:0;background-color:#fff;color:#000;font-size:10pt; --color-primary: #0ea5e9; --color-text-main: #000;}.container{margin:0;padding:10mm;box-shadow:none;border-radius:0;border:none;width:100%;max-width:100%}.print-button-container{display:none}h1{color:var(--color-primary)!important;border-color:var(--color-primary)!important} li.completed label {text-decoration: none;} }</style></head><body><div class="container"><div class="company-header"><img src="https://placehold.co/150x50/0ea5e9/FFFFFF?text=SuaGrafica&font=poppins" alt="Logo da Gráfica"><div class="company-info"><p><strong>Empresa:</strong> Gráfica Exemplo</p><p><strong>CNPJ:</strong> 00.000.000/0001-00</p><p><strong>Endereço:</strong> Rua Exemplo, 123, Cidade</p><p><strong>Telefone:</strong> (00) 0000-0000</p><p><strong>Email:</strong> contato@suagrafica.com</p></div></div><h1>Pedido: ${pedido.numeroPedido||'N/A'}</h1><div class="section-title">Cliente</div><p><strong>Nome:</strong> ${pedido.clienteNome||'N/A'}</p><div class="section-title">Pedido</div><p><strong>Número:</strong> ${pedido.numeroPedido||'N/A'}</p><p><strong>Data:</strong> ${dataPedidoTexto}</p><p><strong>Entrega:</strong> ${dataEntregaFormatada}</p><p><strong>Vendedor:</strong> ${pedido.vendedorNome||'N/A'}</p><p><strong>Estado:</strong> ${pedido.status||'N/A'}</p>${entregaHtml}<div class="section-title">Pagamentos</div>${pagamentosHtml}<div class="section-title">Itens</div><ul>${itensHtml}</ul>${descricaoGeralHtml}${pedido.imagemPreviewPedidoBase64?`<div class="section-title">Preview</div><img class="pedido-preview-print" src="${pedido.imagemPreviewPedidoBase64}" alt="Preview" />`:''}<div class="payment-summary total-section"><p><strong>Total Pedido:</strong> R$ ${pedido.valorTotal?.toFixed(2).replace('.',',')||'0,00'}</p><p><strong>Total Pago:</strong> R$ ${totalPagoCalculado.toFixed(2).replace('.',',')}</p>${valorRestanteCalculado>0?`<p style="color:red"><strong>Restante:</strong> R$ ${valorRestanteCalculado.toFixed(2).replace('.',',')}</p>`:'<p style="color:green"><strong>Quitado</strong></p>'}</div><div class="print-button-container"><button class="print-button" onclick="window.print()">Imprimir</button></div><p class="footer-note">Gerado em: ${new Date().toLocaleString('pt-BR')}</p></div></body></html>`; 
+            // CORREÇÃO: CSS Adicionado para as etapas de produção na visualização de impressão
+            const conteudoHtml = `<html><head><title>Pedido: ${pedido.numeroPedido||'N/A'}</title><style>body{font-family:'Poppins',Arial,sans-serif;margin:20px;background-color:#f1f5f9;color:#334155;font-size:14px}:root{--color-primary:#0ea5e9;--color-text-main:#334155;--color-text-heading:#1e293b;--color-text-muted:#64748b;--color-border-soft:#e2e8f0;--color-border-medium:#cbd5e1;--shadow-lg:0 10px 15px -3px rgb(0 0 0 / 0.07),0 4px 6px -4px rgb(0 0 0 / 0.07)}.container{max-width:700px;margin:auto;background-color:#fff;padding:25px;border-radius:12px;box-shadow:var(--shadow-lg);border:1px solid var(--color-border-soft)}.company-header{display:flex;align-items:center;margin-bottom:25px;padding-bottom:15px;border-bottom:1px solid var(--color-border-soft)}.company-header img{max-height:50px;margin-right:20px}.company-header .company-info p{margin:2px 0;font-size:.9em;color:var(--color-text-muted)}.company-header .company-info strong{color:var(--color-text-heading);font-weight:600}h1{text-align:center;color:var(--color-primary);border-bottom:2px solid var(--color-primary);padding-bottom:10px;margin-bottom:25px;font-size:1.6em;font-weight:600}.section-title{font-size:1.15em;font-weight:600;color:var(--color-text-heading);margin-top:25px;margin-bottom:10px;border-bottom:1px solid var(--color-border-medium);padding-bottom:6px}p{margin-bottom:8px;line-height:1.65}strong{font-weight:500;color:var(--color-text-main)}ul{list-style:none;margin-left:0;padding-left:5px}li{margin-bottom:12px;display:flex;flex-wrap:wrap;align-items:flex-start;padding-bottom:8px;border-bottom:1px dashed #e2e8f0}.item-details{flex-grow:1;margin-bottom:5px;width:100%}.production-steps{display:flex;gap:20px;padding-left:15px;width:100%}.production-steps .step{display:flex;align-items:center;gap:5px}.production-steps .step label{cursor:pointer;font-size:.9em}.production-steps .step input[type=checkbox]{cursor:pointer}.info-icon{margin-left:5px;font-weight:bold;color:#64748b;cursor:help;font-size:1.1em}.total-section{margin-top:30px;padding-top:20px;border-top:2px solid var(--color-primary);text-align:right}.total-section p{font-size:1.25em;font-weight:600;color:var(--color-primary)}.payment-summary p{font-size:1.05em;margin-bottom:4px;text-align:right}.payment-summary strong{font-weight:600}.print-button-container{text-align:center;margin-top:30px}.print-button{background-color:var(--color-primary);color:white;padding:12px 24px;border:none;border-radius:8px;font-size:1em;cursor:pointer;transition:background-color .2s}.print-button:hover{background-color:#0284c7}.footer-note{font-size:.85em;color:var(--color-text-muted);text-align:center;margin-top:30px;padding-top:15px;border-top:1px solid var(--color-border-soft)}img.pedido-preview-print{max-width:100%;max-height:280px;display:block;margin:20px auto;border:1px solid var(--color-border-medium);border-radius:8px;page-break-inside:avoid;object-fit:contain}@media print{body{margin:0;padding:0;background-color:#fff;color:#000;font-size:10pt;--color-primary:#0ea5e9;--color-text-main:#000}.container{margin:0;padding:10mm;box-shadow:none;border-radius:0;border:none;width:100%;max-width:100%}.print-button-container{display:none}h1{color:var(--color-primary)!important;border-color:var(--color-primary)!important}}</style></head><body><div class="container"><div class="company-header"><img src="https://placehold.co/150x50/0ea5e9/FFFFFF?text=SuaGrafica&font=poppins" alt="Logo da Gráfica"><div class="company-info"><p><strong>Empresa:</strong> Gráfica Exemplo</p><p><strong>CNPJ:</strong> 00.000.000/0001-00</p><p><strong>Endereço:</strong> Rua Exemplo, 123, Cidade</p><p><strong>Telefone:</strong> (00) 0000-0000</p><p><strong>Email:</strong> contato@suagrafica.com</p></div></div><h1>Pedido: ${pedido.numeroPedido||'N/A'}</h1><div class="section-title">Cliente</div><p><strong>Nome:</strong> ${pedido.clienteNome||'N/A'}</p><div class="section-title">Pedido</div><p><strong>Número:</strong> ${pedido.numeroPedido||'N/A'}</p><p><strong>Data:</strong> ${dataPedidoTexto}</p><p><strong>Entrega:</strong> ${dataEntregaFormatada}</p><p><strong>Vendedor:</strong> ${pedido.vendedorNome||'N/A'}</p><p><strong>Estado:</strong> ${pedido.status||'N/A'}</p>${entregaHtml}<div class="section-title">Pagamentos</div>${pagamentosHtml}<div class="section-title">Itens</div><ul>${itensHtml}</ul>${descricaoGeralHtml}${pedido.imagemPreviewPedidoBase64?`<div class="section-title">Preview</div><img class="pedido-preview-print" src="${pedido.imagemPreviewPedidoBase64}" alt="Preview" />`:''}<div class="payment-summary total-section"><p><strong>Total Pedido:</strong> R$ ${pedido.valorTotal?.toFixed(2).replace('.',',')||'0,00'}</p><p><strong>Total Pago:</strong> R$ ${totalPagoCalculado.toFixed(2).replace('.',',')}</p>${valorRestanteCalculado>0?`<p style="color:red"><strong>Restante:</strong> R$ ${valorRestanteCalculado.toFixed(2).replace('.',',')}</p>`:'<p style="color:green"><strong>Quitado</strong></p>'}</div><div class="print-button-container"><button class="print-button" onclick="window.print()">Imprimir</button></div><p class="footer-note">Gerado em: ${new Date().toLocaleString('pt-BR')}</p></div></body></html>`; 
             
-            const nG = window.open('', '_blank'); 
+            const nG = window.open('', `Pedido: ${pedido.numeroPedido || 'detalhes'}`); 
             if (nG) { 
                 nG.document.open(); 
                 nG.document.write(conteudoHtml); 
@@ -2115,11 +2135,12 @@
         };
 
         window.removerItemPedidoForm=(id)=>{const el=document.getElementById(`itemPedido-${id}`);if(el)el.remove();atualizarValorTotalPedido();}
+        window.removerPagamentoForm=(id)=>{const el=document.getElementById(`pagamentoItem-${id}`);if(el)el.remove();calcularTotaisPagamento();}
         window.toggleCamposProduto=(id)=>{const s=document.getElementById(`itemProduto-${id}`),o=s.options[s.selectedIndex],t=o.dataset.tipo;document.getElementById(`camposProdutoMetro-${id}`).classList.toggle('hidden',t!=='metro');calcularValorItem(id);}
         window.calcularValorItem=(id)=>{const s=document.getElementById(`itemProduto-${id}`),o=s.options[s.selectedIndex];if(!o||!o.value){document.getElementById(`itemValor-${id}`).value="R$ 0,00";atualizarValorTotalPedido();return;}const t=o.dataset.tipo,pm=parseFloat(o.dataset.precoMetro),pu=parseFloat(o.dataset.precoUnidade),q=parseInt(document.getElementById(`itemQuantidade-${id}`).value)||1;let v=0;if(t==='metro'){const l=parseFloat(document.getElementById(`itemLargura-${id}`).value)||0,a=parseFloat(document.getElementById(`itemAltura-${id}`).value)||0;if(l>0&&a>0&&pm>0)v=(l*a*pm)*q;}else{if(pu>0)v=pu*q;}document.getElementById(`itemValor-${id}`).value=`R$ ${v.toFixed(2).replace('.',',')}`;atualizarValorTotalPedido();}
         function atualizarValorTotalPedido(){let tI=0;document.querySelectorAll('.valor-item-produto').forEach(i=>{const v=i.value.replace('R$ ','').replace(',','.');tI+=parseFloat(v)||0;});document.getElementById('pedidoValorTotal').value=`R$ ${tI.toFixed(2).replace('.',',')}`;calcularTotaisPagamento();}
         window.adicionarPagamentoForm=()=>{pagamentoCount++;const c=document.getElementById('pagamentosContainer');const d=document.createElement('div');d.className='grid grid-cols-1 sm:grid-cols-[2fr,1fr,auto] gap-3 items-end p-3 border rounded-lg pagamento-form-item';d.id=`pagamentoItem-${pagamentoCount}`;d.innerHTML=`<div><label class="label-text text-xs">Forma:</label><select class="input-field input-field-sm py-1.5 forma-pagamento"><option value="Dinheiro">Dinheiro</option><option value="Cartão de Crédito">Crédito</option><option value="Cartão de Débito">Débito</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Pendente">Pendente</option></select></div><div><label class="label-text text-xs">Valor (R$):</label><input type="number" step="0.01" class="input-field input-field-sm py-1.5 valor-pago" placeholder="0,00" oninput="window.calcularTotaisPagamento()"></div><button type="button" onclick="removerPagamentoForm(${pagamentoCount})" class="btn btn-danger btn-small text-xs py-1.5 px-2 self-center sm:self-end h-8"><i class="fas fa-trash"></i></button><div class="sm:col-span-3"><label class="label-text text-xs">Obs:</label><input type="text" class="input-field input-field-sm py-1.5 observacao-pagamento" placeholder="Ex: Entrada..."></div>`;c.appendChild(d);calcularTotaisPagamento();}
-        window.removerPagamentoForm=(id)=>{const el=document.getElementById(`itemPedido-${id}`);if(el)el.remove();calcularTotaisPagamento();}
+        
         function calcularTotaisPagamento(){let tP=0;document.querySelectorAll('.pagamento-form-item .valor-pago').forEach(i=>{tP+=parseFloat(i.value)||0;});document.getElementById('pedidoTotalPago').value=`R$ ${tP.toFixed(2).replace('.',',')}`;const vTS=document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.'),vT=parseFloat(vTS)||0,vR=vT-tP;document.getElementById('pedidoValorRestante').value=`R$ ${vR.toFixed(2).replace('.',',')}`; }
         window.calcularTotaisPagamento = calcularTotaisPagamento; 
         document.getElementById('formNovoPedido').addEventListener('submit', async (e) => { 
