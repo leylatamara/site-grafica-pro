@@ -1890,7 +1890,7 @@
             const formatDate = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleDateString('pt-BR') : 'N/A'; };
             const formatDateTime = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'; };
             
-            const rolesPermitidasParaMarcar = ['producao', 'impressor'];
+            const rolesPermitidasParaMarcar = ['producao', 'impressor', 'admin'];
             const podeMarcarItens = loggedInUserRole && rolesPermitidasParaMarcar.includes(loggedInUserRole);
 
             let dataPedidoTexto = formatDateTime(pedido.dataPedido);
@@ -2102,9 +2102,11 @@
                     d.querySelector('.dimensoes-produto[id^="itemLargura"]').value = itemParaEditar.largura;
                     d.querySelector('.dimensoes-produto[id^="itemAltura"]').value = itemParaEditar.altura;
                 }
-                d.dataset.concluido = itemParaEditar.concluido || false;
-                d.dataset.concluidoPor = itemParaEditar.concluidoPor || '';
-                d.dataset.concluidoEm = itemParaEditar.concluidoEm ? JSON.stringify(itemParaEditar.concluidoEm) : '';
+                
+                // Manter o estado de produção ao editar
+                if(itemParaEditar.productionSteps) {
+                    d.dataset.productionSteps = JSON.stringify(itemParaEditar.productionSteps);
+                }
 
                 calcularValorItem(itemPedidoCount);
             }
@@ -2156,11 +2158,14 @@
                 let l=null,a=null;
                 if(tP==='metro'){l=parseFloat(document.getElementById(`itemLargura-${cId}`).value)||0;a=parseFloat(document.getElementById(`itemAltura-${cId}`).value)||0;}
                 if(pId&&q>0&&vI>=0) {
-                     let isConcluido = iF.dataset.concluido === 'true';
-                     let concluidoPor = iF.dataset.concluidoPor || null;
-                     let concluidoEm = null;
-                     try { concluidoEm = iF.dataset.concluidoEm ? new Timestamp(JSON.parse(iF.dataset.concluidoEm).seconds, JSON.parse(iF.dataset.concluidoEm).nanoseconds) : null; } catch(e) {}
-                     d.itens.push({produtoId:pId,produtoNome:pN,tipoProduto:tP,quantidade:q,largura:l,altura:a,valorItem:vI, descricao: desc, concluido: isConcluido, concluidoPor: concluidoPor, concluidoEm: concluidoEm });
+                     let productionSteps = {};
+                     try { productionSteps = iF.dataset.productionSteps ? JSON.parse(iF.dataset.productionSteps) : {}; } catch(e) { productionSteps = {}; }
+
+                     // Inicializa as etapas se não existirem
+                     if (!productionSteps.impressao) productionSteps.impressao = { concluido: false, concluidoPor: null, concluidoEm: null };
+                     if (!productionSteps.acabamento) productionSteps.acabamento = { concluido: false, concluidoPor: null, concluidoEm: null };
+
+                     d.itens.push({produtoId:pId,produtoNome:pN,tipoProduto:tP,quantidade:q,largura:l,altura:a,valorItem:vI, descricao: desc, productionSteps: productionSteps });
                 }
                 else{exibirMensagem(`Item ${idx+1} inválido.`,"warning");formValido=false;}
             });
@@ -2170,7 +2175,7 @@
             
             const pData={clienteId:d.clienteId,clienteNome:d.clienteNome,vendedorId:d.vendedorId,vendedorNome:d.vendedorNome,pagamentos:d.pagamentos,dataEntrega:dEFinal,status:d.status,valorTotal:d.valorTotal,itens:d.itens,imagemPreviewPedidoBase64:d.imagemPreviewPedidoBase64, descricaoGeral: d.descricaoGeral}; 
             
-            try{const pCP=`artifacts/${shopInstanceAppId}/pedidos`;if(editingOrderId){const pR=doc(db,pCP,editingOrderId);const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;pData.entreguePorNome=oPD.entreguePorNome||null;pData.entreguePorId=oPD.entreguePorId||null;pData.entregueEm=oPD.entregueEm||null;await setDoc(pR,pData);}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,pCP),pData);exibirMensagem('Pedido guardado com sucesso!', 'success');} document.getElementById('formNovoPedido').reset();document.getElementById('editingOrderIdField').value='';editingOrderId=null;document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';document.getElementById('itensPedidoContainer').innerHTML='';document.getElementById('pagamentosContainer').innerHTML='';pagamentoCount=0;pedidoImagemBase64=null;const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}itemPedidoCount=0;atualizarValorTotalPedido();mostrarSecao('telaInicial',true);}catch(err){console.error(err);exibirMensagem('Erro ao processar pedido.','error');} 
+            try{const pCP=`artifacts/${shopInstanceAppId}/pedidos`;if(editingOrderId){const pR=doc(db,pCP,editingOrderId);const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;pData.entreguePorNome=oPD.entreguePorNome||null;pData.entreguePorId=oPD.entreguePorId||null;pData.entregueEm=oPD.entregueEm||null;await setDoc(pR,pData);exibirMensagem('Pedido atualizado com sucesso!', 'success');}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,pCP),pData);exibirMensagem('Pedido guardado com sucesso!', 'success');} document.getElementById('formNovoPedido').reset();document.getElementById('editingOrderIdField').value='';editingOrderId=null;document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';document.getElementById('itensPedidoContainer').innerHTML='';document.getElementById('pagamentosContainer').innerHTML='';pagamentoCount=0;pedidoImagemBase64=null;const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}itemPedidoCount=0;atualizarValorTotalPedido();mostrarSecao('telaInicial',true);}catch(err){console.error(err);exibirMensagem('Erro ao processar pedido.','error');} 
         });
         function getStatusBadgeSimpleHTML(status){let bC='neutral';if(status==='Entregue')bC='success';else if(status==='Cancelado')bC='danger';else if(status==='Pronto para Retirada')bC='primary';else if(status.startsWith('Em Produção')||status==='Em Rota de Entrega')bC='info';else if(status==='Aguardando Aprovação')bC='warning';return`<span class="status-badge-simple ${bC}">${status}</span>`;}
         function renderizarListaCompletaPedidos() { const tbody = document.getElementById('listaTodosPedidos'); if (!tbody) return; tbody.innerHTML = ''; const fNC=document.getElementById('filtroNomeCliente')?.value.toLowerCase()||'',fNP=document.getElementById('filtroNumeroPedido')?.value.toLowerCase()||'',fDPS=document.getElementById('filtroDataPedido')?.value||'',fMP=document.getElementById('filtroMaterialProduto')?.value.toLowerCase()||''; let fSP=document.getElementById('filtroStatusPedido')?.value||''; const fC=document.getElementById('filtroClassificacaoPedido')?.value||'dataPedido_desc',fVI=document.getElementById('filtroVendedor')?.value||''; if(!fSP){if(loggedInUserRole==='impressor')fSP='Em Produção (Impressão)';} let pF=[...todosOsPedidosCache]; if(fNC)pF=pF.filter(p=>p.clienteNome&&p.clienteNome.toLowerCase().includes(fNC)); if(fNP)pF=pF.filter(p=>p.numeroPedido&&p.numeroPedido.toLowerCase().includes(fNP)); if(fDPS){const dF=new Date(fDPS+"T00:00:00");pF=pF.filter(p=>{if(p.dataPedido&&p.dataPedido.toDate){const dPO=p.dataPedido.toDate();return dPO.getFullYear()===dF.getFullYear()&&dPO.getMonth()===dF.getMonth()&&dPO.getDate()===dF.getDate();}return false;});} if(fMP)pF=pF.filter(p=>{if(p.itens&&Array.isArray(p.itens))return p.itens.some(i=>i.produtoNome&&i.produtoNome.toLowerCase().includes(fMP));return false;}); if(loggedInUserRole==='producao'&&!document.getElementById('filtroStatusPedido')?.value){const sP=["Em Produção (Arte)","Em Produção (Impressão)","Em Produção (Acabamento)"];pF=pF.filter(p=>sP.includes(p.status));}else if(fSP){pF=pF.filter(p=>p.status===fSP);} if(fVI)pF=pF.filter(p=>p.vendedorId===fVI); switch(fC){case'dataPedido_asc':pF.sort((a,b)=>(a.dataPedido?.toMillis()||0)-(b.dataPedido?.toMillis()||0));break;case'dataPedido_desc':pF.sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0));break;case'dataEntrega_asc':pF.sort((a,b)=>(a.dataEntrega?.toMillis()||0)-(b.dataEntrega?.toMillis()||0));break;case'dataEntrega_desc':pF.sort((a,b)=>(b.dataEntrega?.toMillis()||0)-(a.dataEntrega?.toMillis()||0));break;case'clienteNome_asc':pF.sort((a,b)=>(a.clienteNome||"").localeCompare(b.clienteNome||""));break;case'clienteNome_desc':pF.sort((a,b)=>(b.clienteNome||"").localeCompare(a.clienteNome||""));break;case'numeroPedido_asc':pF.sort((a,b)=>(a.numeroPedido||"").localeCompare(b.numeroPedido||"",undefined,{numeric:true}));break;case'numeroPedido_desc':pF.sort((a,b)=>(b.numeroPedido||"").localeCompare(a.numeroPedido||"",undefined,{numeric:true}));break;default:pF.sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0));} if(pF.length===0){ tbody.innerHTML='<tr><td colspan="7" class="text-center py-10">Nenhum pedido encontrado com os filtros aplicados.</td></tr>'; return; } pF.forEach(p=>{ const tr = document.createElement('tr'); const pM=JSON.stringify(p); const dPF=p.dataPedido?.toDate?p.dataPedido.toDate().toLocaleString('pt-BR',{day:'2-digit', month:'2-digit', year:'numeric'}):'N/A'; const dEF=p.dataEntrega?.toDate?p.dataEntrega.toDate().toLocaleDateString('pt-BR'):'N/A';
