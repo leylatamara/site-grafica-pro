@@ -1822,24 +1822,17 @@
         window.abrirModalEditarCodigoFuncionario=(fId,nome,cA)=>{ document.getElementById('funcionarioIdParaEditarCodigo').value=fId; document.getElementById('nomeFuncionarioParaEditarCodigo').textContent=`Funcionário: ${nome}`; document.getElementById('novoCodigoAcesso').value=cA||''; abrirModalEspecifico('modalEditarCodigoFuncionarioOverlay','modalEditarCodigoFuncionarioContent'); }
         window.fecharModalEditarCodigoFuncionario=()=>fecharModalEspecifico('modalEditarCodigoFuncionarioOverlay','modalEditarCodigoFuncionarioContent');
         
-        window.toggleEtapaStatus = async (pedidoId, itemIndex, etapa, isChecked) => {
+        window.toggleItemStatus = async (pedidoId, itemIndex, isChecked) => {
             if (!auth.currentUser) {
                 exibirMensagem("Sem permissão para alterar. Faça o login novamente.", "error");
                 return;
             }
-            
-            const rolesPermitidas = {
-                impressao: ['admin', 'impressor'],
-                producao: ['admin', 'producao']
-            };
-
-            if (!rolesPermitidas[etapa] || !rolesPermitidas[etapa].includes(loggedInUserRole)) {
-                exibirMensagem(`Não tem permissão para alterar a etapa de ${etapa}.`, "error");
-                const checkbox = document.getElementById(`${etapa}-check-${pedidoId}-${itemIndex}`);
-                if (checkbox) {
-                    checkbox.checked = !isChecked;
-                    checkbox.parentElement.classList.toggle('completed', !isChecked);
-                }
+            const rolesPermitidas = ['producao', 'impressor'];
+            if (!rolesPermitidas.includes(loggedInUserRole)) {
+                exibirMensagem("Não tem permissão para alterar o estado do item.", "error");
+                // Desfaz a mudança visual do checkbox
+                const checkbox = document.getElementById(`item-check-${pedidoId}-${itemIndex}`);
+                if (checkbox) checkbox.checked = !isChecked;
                 return;
             }
 
@@ -1849,34 +1842,21 @@
             if (pedidoParaAtualizar && pedidoParaAtualizar.itens[itemIndex] != null) {
                 const novosItens = [...pedidoParaAtualizar.itens];
                 const item = novosItens[itemIndex];
-                
-                // Ensure the 'etapas' structure exists, migrating if necessary
-                if (!item.etapas) {
-                    item.etapas = {
-                        impressao: { concluido: item.concluido || false, concluidoPor: item.concluidoPor || null, concluidoEm: item.concluidoEm || null },
-                        producao: { concluido: false, concluidoPor: null, concluidoEm: null }
-                    };
-                }
-                
-                if (!item.etapas[etapa]) {
-                    item.etapas[etapa] = {};
-                }
-
-                item.etapas[etapa].concluido = isChecked;
+                item.concluido = isChecked;
 
                 if (isChecked) {
-                    item.etapas[etapa].concluidoPor = loggedInUserName;
-                    item.etapas[etapa].concluidoEm = Timestamp.now();
+                    item.concluidoPor = loggedInUserName;
+                    item.concluidoEm = Timestamp.now();
                 } else {
-                    item.etapas[etapa].concluidoPor = null;
-                    item.etapas[etapa].concluidoEm = null;
+                    item.concluidoPor = null;
+                    item.concluidoEm = null;
                 }
                 
                 try {
                     await updateDoc(pedidoDocRef, { itens: novosItens });
-                    exibirMensagem(`Etapa de ${etapa} do item ${itemIndex + 1} atualizada.`, 'success', 2000);
+                    exibirMensagem(`Item ${itemIndex + 1} atualizado.`, 'success', 2000);
                 } catch (error) {
-                    console.error("Erro ao atualizar etapa do item:", error);
+                    console.error("Erro ao atualizar item do pedido:", error);
                     exibirMensagem("Erro ao atualizar o item.", "error");
                 }
             } else {
@@ -1884,13 +1864,33 @@
             }
         };
 
+        window.marcarComoEntregue = async (pedidoId) => {
+            if (!auth.currentUser || !pedidoId) {
+                exibirMensagem("Ação inválida. Faça login novamente.", "error");
+                return;
+            }
+            const pedidoDocRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+            const dadosUpdate = {
+                status: 'Entregue',
+                entreguePorNome: loggedInUserName,
+                entreguePorId: loggedInUserIdGlobal,
+                entregueEm: Timestamp.now()
+            };
+            try {
+                await updateDoc(pedidoDocRef, dadosUpdate);
+                exibirMensagem("Pedido marcado como Entregue!", "success");
+            } catch (error) {
+                console.error("Erro ao marcar pedido como entregue:", error);
+                exibirMensagem("Erro ao atualizar o estado do pedido.", "error");
+            }
+        };
 
         window.abrirDetalhesPedidoNovaGuia = (pedido) => {
             const reconstructTimestamp = (tsObj) => (tsObj && typeof tsObj.seconds === 'number' && typeof tsObj.nanoseconds === 'number') ? new Timestamp(tsObj.seconds, tsObj.nanoseconds) : null;
             const formatDate = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleDateString('pt-BR') : 'N/A'; };
             const formatDateTime = (ts) => { const t = reconstructTimestamp(ts); return t ? t.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'; };
             
-            const rolesPermitidasParaMarcar = ['admin', 'producao', 'impressor'];
+            const rolesPermitidasParaMarcar = ['producao', 'impressor'];
             const podeMarcarItens = loggedInUserRole && rolesPermitidasParaMarcar.includes(loggedInUserRole);
 
             let dataPedidoTexto = formatDateTime(pedido.dataPedido);
@@ -1900,60 +1900,39 @@
                 dataEntregaFormatada = formatDateTime(pedido.dataEntrega);
             }
             
+            let entregaHtml = '';
+            if (pedido.entreguePorNome && pedido.entregueEm) {
+                 entregaHtml = `<p><strong>Entrega confirmada por:</strong> ${pedido.entreguePorNome} em ${formatDateTime(pedido.entregueEm)}</p>`;
+            }
+
+
             let descricaoGeralHtml = pedido.descricaoGeral ? `<div class="section-title">Descrição Geral</div><p><strong>${pedido.descricaoGeral.replace(/\n/g, '<br>')}</strong></p>` : '';
 
             let itensHtml = pedido.itens?.length > 0 ? pedido.itens.map((item, index) => {
-                // Handle old data structure for backward compatibility
-                if (!item.etapas) {
-                    item.etapas = {
-                        impressao: { concluido: item.concluido || false, concluidoPor: item.concluidoPor, concluidoEm: item.concluidoEm },
-                        producao: { concluido: false, concluidoPor: null, concluidoEm: null }
-                    };
-                }
-
-                const impressao = item.etapas.impressao || { concluido: false };
-                const producao = item.etapas.producao || { concluido: false };
-
-                const impressaoCheckId = `impressao-check-${pedido.id}-${index}`;
-                const producaoCheckId = `producao-check-${pedido.id}-${index}`;
-                
-                const rolesImpressao = ['admin', 'impressor'];
-                const podeMarcarImpressao = loggedInUserRole && rolesImpressao.includes(loggedInUserRole);
-
-                const rolesProducao = ['admin', 'producao'];
-                const podeMarcarProducao = loggedInUserRole && rolesProducao.includes(loggedInUserRole);
-
-                let impressaoInfo = '';
-                if (impressao.concluido && impressao.concluidoPor && impressao.concluidoEm) {
-                    const dataConclusao = formatDateTime(impressao.concluidoEm);
-                    impressaoInfo = `<span class="info-icon" title="Impresso por: ${impressao.concluidoPor} em ${dataConclusao}">ⓘ</span>`;
-                }
-
-                let producaoInfo = '';
-                if (producao.concluido && producao.concluidoPor && producao.concluidoEm) {
-                     const dataConclusao = formatDateTime(producao.concluidoEm);
-                    producaoInfo = `<span class="info-icon" title="Produzido por: ${producao.concluidoPor} em ${dataConclusao}">ⓘ</span>`;
-                }
+                const isConcluido = item.concluido === true;
+                const checkboxId = `item-check-${pedido.id}-${index}`;
                 
                 const itemDesc = item.descricao ? `<br><small style="color: #555; padding-left: 15px;">&hookrightarrow; ${item.descricao}</small>` : '';
                 const dimensoes = item.tipoProduto === 'metro' && item.largura && item.altura ? ` (${item.largura.toFixed(2)}m x ${item.altura.toFixed(2)}m)` : '';
-                const mainLabel = `${item.quantidade}x ${item.produtoNome}${dimensoes} - R$ ${item.valorItem.toFixed(2).replace('.', ',')}${itemDesc}`;
                 
-                const impressaoArea = `
-                    <div class="etapa ${impressao.concluido ? 'completed' : ''}" ${podeMarcarImpressao ? `onclick="document.getElementById('${impressaoCheckId}').click()"` : ''} data-interactive="${podeMarcarImpressao}">
-                        <input type="checkbox" id="${impressaoCheckId}" onchange="this.parentElement.classList.toggle('completed', this.checked); window.opener.toggleEtapaStatus('${pedido.id}', ${index}, 'impressao', this.checked)" ${impressao.concluido ? 'checked' : ''} ${!podeMarcarImpressao ? 'disabled' : ''}>
-                        <label for="${impressaoCheckId}">Impressão</label>
-                        ${impressaoInfo}
-                    </div>`;
+                const liOnclick = podeMarcarItens ? `onclick="document.getElementById('${checkboxId}').click()"` : '';
 
-                const producaoArea = `
-                    <div class="etapa ${producao.concluido ? 'completed' : ''}" ${podeMarcarProducao ? `onclick="document.getElementById('${producaoCheckId}').click()"` : ''} data-interactive="${podeMarcarProducao}">
-                        <input type="checkbox" id="${producaoCheckId}" onchange="this.parentElement.classList.toggle('completed', this.checked); window.opener.toggleEtapaStatus('${pedido.id}', ${index}, 'producao', this.checked)" ${producao.concluido ? 'checked' : ''} ${!podeMarcarProducao ? 'disabled' : ''}>
-                        <label for="${producaoCheckId}">Produção</label>
-                        ${producaoInfo}
-                    </div>`;
-
-                return `<li class="item-producao-container"><div class="item-label">${mainLabel}</div><div class="etapas-wrapper">${impressaoArea}${producaoArea}</div></li>`;
+                let infoSpan = '';
+                if (isConcluido && item.concluidoPor && item.concluidoEm) {
+                    const dataConclusao = formatDateTime(item.concluidoEm);
+                    const tooltipText = `Concluído por: ${item.concluidoPor} em ${dataConclusao}`;
+                    infoSpan = `<span class="info-icon" title="${tooltipText}">ⓘ</span>`;
+                }
+                
+                return `
+                    <li class="${isConcluido ? 'completed' : ''}" ${liOnclick} data-interactive="${podeMarcarItens}">
+                        <input type="checkbox" id="${checkboxId}" 
+                               onchange="this.parentElement.classList.toggle('completed', this.checked); window.opener.toggleItemStatus('${pedido.id}', ${index}, this.checked)" 
+                               ${isConcluido ? 'checked' : ''} 
+                               ${!podeMarcarItens ? 'disabled' : ''}>
+                        <label for="${checkboxId}">${item.quantidade}x ${item.produtoNome}${dimensoes} - R$ ${item.valorItem.toFixed(2).replace('.', ',')}${itemDesc}</label>
+                        ${infoSpan}
+                    </li>`;
             }).join('') : '<li>Nenhum item.</li>';
 
             let pagamentosHtml = 'Nenhum pagamento.';
@@ -1970,7 +1949,7 @@
             
             const valorRestanteCalculado = (pedido.valorTotal || 0) - totalPagoCalculado;
             
-            const conteudoHtml = `<html><head><title>Pedido: ${pedido.numeroPedido||'N/A'}</title><style>body{font-family:'Poppins',Arial,sans-serif;margin:20px;background-color:#f1f5f9;color:#334155;font-size:14px}:root{--color-primary: #0ea5e9; --color-text-main: #334155; --color-text-heading: #1e293b; --color-text-muted: #64748b; --color-border-soft: #e2e8f0; --color-border-medium: #cbd5e1; --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);}.container{max-width:700px;margin:auto;background-color:#fff;padding:25px;border-radius:12px;box-shadow:var(--shadow-lg);border:1px solid var(--color-border-soft)}.company-header{display:flex;align-items:center;margin-bottom:25px;padding-bottom:15px;border-bottom:1px solid var(--color-border-soft)}.company-header img{max-height:50px;margin-right:20px}.company-header .company-info p{margin:2px 0;font-size:.9em;color:var(--color-text-muted)}.company-header .company-info strong{color:var(--color-text-heading); font-weight:600;}h1{text-align:center;color:var(--color-primary);border-bottom:2px solid var(--color-primary);padding-bottom:10px;margin-bottom:25px;font-size:1.6em;font-weight:600}.section-title{font-size:1.15em;font-weight:600;color:var(--color-text-heading);margin-top:25px;margin-bottom:10px;border-bottom:1px solid var(--color-border-medium);padding-bottom:6px}p{margin-bottom:8px;line-height:1.65}strong{font-weight:500;color:var(--color-text-main)}ul{list-style:none;margin-left:0;padding-left:5px}li.item-producao-container{display:flex;flex-direction:column;align-items:flex-start;padding:10px;border-bottom:1px solid #eee;gap:8px}.item-label{font-weight:500}.etapas-wrapper{display:flex;gap:15px;width:100%}.etapa{display:flex;align-items:center;padding:4px 8px;border:1px solid #ccc;border-radius:15px;font-size:.9em;transition:all .2s ease}.etapa[data-interactive=true]{cursor:pointer}.etapa:not([data-interactive=true]){opacity:.8}.etapa input[type=checkbox]{display:none}.etapa::before{content:'⬜';margin-right:8px;font-size:1.1em}.etapa.completed{background-color:#dcfce7;border-color:#22c55e;color:#15803d}.etapa.completed::before{content:'✅'}.info-icon{margin-left:8px;font-weight:700;color:#64748b;cursor:help;font-size:1.1em;position:relative}.total-section{margin-top:30px;padding-top:20px;border-top:2px solid var(--color-primary);text-align:right}.total-section p{font-size:1.25em;font-weight:600;color:var(--color-primary)}.payment-summary p{font-size:1.05em;margin-bottom:4px;text-align:right}.payment-summary strong{font-weight:600}.print-button-container{text-align:center;margin-top:30px}.print-button{background-color:var(--color-primary);color:white;padding:12px 24px;border:none;border-radius:8px;font-size:1em;cursor:pointer;transition:background-color .2s}.print-button:hover{background-color:#0284c7}.footer-note{font-size:.85em;color:var(--color-text-muted);text-align:center;margin-top:30px;padding-top:15px;border-top:1px solid var(--color-border-soft)}img.pedido-preview-print{max-width:100%;max-height:280px;display:block;margin:20px auto;border:1px solid var(--color-border-medium);border-radius:8px;page-break-inside:avoid;object-fit:contain}@media print{body{margin:0;padding:0;background-color:#fff;color:#000;font-size:10pt; --color-primary: #0ea5e9; --color-text-main: #000;}.container{margin:0;padding:10mm;box-shadow:none;border-radius:0;border:none;width:100%;max-width:100%}.print-button-container{display:none}h1{color:var(--color-primary)!important;border-color:var(--color-primary)!important}.info-icon{display:none}.etapa{border:none;padding:2px 0}.etapa.completed label{color:#000}.etapa:not(.completed) label{color:#888}}</style></head><body><div class="container"><div class="company-header"><img src="https://placehold.co/150x50/0ea5e9/FFFFFF?text=SuaGrafica&font=poppins" alt="Logo da Gráfica"><div class="company-info"><p><strong>Empresa:</strong> Gráfica Exemplo</p><p><strong>CNPJ:</strong> 00.000.000/0001-00</p><p><strong>Endereço:</strong> Rua Exemplo, 123, Cidade</p><p><strong>Telefone:</strong> (00) 0000-0000</p><p><strong>Email:</strong> contato@suagrafica.com</p></div></div><h1>Pedido: ${pedido.numeroPedido||'N/A'}</h1><div class="section-title">Cliente</div><p><strong>Nome:</strong> ${pedido.clienteNome||'N/A'}</p><div class="section-title">Pedido</div><p><strong>Número:</strong> ${pedido.numeroPedido||'N/A'}</p><p><strong>Data:</strong> ${dataPedidoTexto}</p><p><strong>Entrega:</strong> ${dataEntregaFormatada}</p><p><strong>Vendedor:</strong> ${pedido.vendedorNome||'N/A'}</p><p><strong>Estado:</strong> ${pedido.status||'N/A'}</p><div class="section-title">Pagamentos</div>${pagamentosHtml}<div class="section-title">Itens</div><ul>${itensHtml}</ul>${descricaoGeralHtml}${pedido.imagemPreviewPedidoBase64?`<div class="section-title">Preview</div><img class="pedido-preview-print" src="${pedido.imagemPreviewPedidoBase64}" alt="Preview" />`:''}<div class="payment-summary total-section"><p><strong>Total Pedido:</strong> R$ ${pedido.valorTotal?.toFixed(2).replace('.',',')||'0,00'}</p><p><strong>Total Pago:</strong> R$ ${totalPagoCalculado.toFixed(2).replace('.',',')}</p>${valorRestanteCalculado>0?`<p style="color:red"><strong>Restante:</strong> R$ ${valorRestanteCalculado.toFixed(2).replace('.',',')}</p>`:'<p style="color:green"><strong>Quitado</strong></p>'}</div><div class="print-button-container"><button class="print-button" onclick="window.print()">Imprimir</button></div><p class="footer-note">Gerado em: ${new Date().toLocaleString('pt-BR')}</p></div></body></html>`; 
+            const conteudoHtml = `<html><head><title>Pedido: ${pedido.numeroPedido||'N/A'}</title><style>body{font-family:'Poppins',Arial,sans-serif;margin:20px;background-color:#f1f5f9;color:#334155;font-size:14px}:root{--color-primary: #0ea5e9; --color-text-main: #334155; --color-text-heading: #1e293b; --color-text-muted: #64748b; --color-border-soft: #e2e8f0; --color-border-medium: #cbd5e1; --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);}.container{max-width:700px;margin:auto;background-color:#fff;padding:25px;border-radius:12px;box-shadow:var(--shadow-lg);border:1px solid var(--color-border-soft)}.company-header{display:flex;align-items:center;margin-bottom:25px;padding-bottom:15px;border-bottom:1px solid var(--color-border-soft)}.company-header img{max-height:50px;margin-right:20px}.company-header .company-info p{margin:2px 0;font-size:.9em;color:var(--color-text-muted)}.company-header .company-info strong{color:var(--color-text-heading); font-weight:600;}h1{text-align:center;color:var(--color-primary);border-bottom:2px solid var(--color-primary);padding-bottom:10px;margin-bottom:25px;font-size:1.6em;font-weight:600}.section-title{font-size:1.15em;font-weight:600;color:var(--color-text-heading);margin-top:25px;margin-bottom:10px;border-bottom:1px solid var(--color-border-medium);padding-bottom:6px}p{margin-bottom:8px;line-height:1.65}strong{font-weight:500;color:var(--color-text-main)}ul{list-style:none;margin-left:0;padding-left:5px}li{margin-bottom:8px; display: flex; align-items: center;}li label{flex-grow:1;} li[data-interactive="true"]{cursor:pointer;}li input[type=checkbox]{display:none;}li::before{content:'⬜';margin-right:10px;font-size:1.2em;}li.completed::before{content:'✅';}li.completed label{color:#9ca3af;} .info-icon { margin-left: 10px; font-weight: bold; color: #64748b; cursor: help; font-size: 1.1em;} .total-section{margin-top:30px;padding-top:20px;border-top:2px solid var(--color-primary);text-align:right}.total-section p{font-size:1.25em;font-weight:600;color:var(--color-primary)}.payment-summary p{font-size:1.05em;margin-bottom:4px;text-align:right}.payment-summary strong{font-weight:600}.print-button-container{text-align:center;margin-top:30px}.print-button{background-color:var(--color-primary);color:white;padding:12px 24px;border:none;border-radius:8px;font-size:1em;cursor:pointer;transition:background-color .2s}.print-button:hover{background-color:#0284c7}.footer-note{font-size:.85em;color:var(--color-text-muted);text-align:center;margin-top:30px;padding-top:15px;border-top:1px solid var(--color-border-soft)}img.pedido-preview-print{max-width:100%;max-height:280px;display:block;margin:20px auto;border:1px solid var(--color-border-medium);border-radius:8px;page-break-inside:avoid;object-fit:contain}@media print{body{margin:0;padding:0;background-color:#fff;color:#000;font-size:10pt; --color-primary: #0ea5e9; --color-text-main: #000;}.container{margin:0;padding:10mm;box-shadow:none;border-radius:0;border:none;width:100%;max-width:100%}.print-button-container{display:none}h1{color:var(--color-primary)!important;border-color:var(--color-primary)!important} li.completed label {text-decoration: none;} }</style></head><body><div class="container"><div class="company-header"><img src="https://placehold.co/150x50/0ea5e9/FFFFFF?text=SuaGrafica&font=poppins" alt="Logo da Gráfica"><div class="company-info"><p><strong>Empresa:</strong> Gráfica Exemplo</p><p><strong>CNPJ:</strong> 00.000.000/0001-00</p><p><strong>Endereço:</strong> Rua Exemplo, 123, Cidade</p><p><strong>Telefone:</strong> (00) 0000-0000</p><p><strong>Email:</strong> contato@suagrafica.com</p></div></div><h1>Pedido: ${pedido.numeroPedido||'N/A'}</h1><div class="section-title">Cliente</div><p><strong>Nome:</strong> ${pedido.clienteNome||'N/A'}</p><div class="section-title">Pedido</div><p><strong>Número:</strong> ${pedido.numeroPedido||'N/A'}</p><p><strong>Data:</strong> ${dataPedidoTexto}</p><p><strong>Entrega:</strong> ${dataEntregaFormatada}</p><p><strong>Vendedor:</strong> ${pedido.vendedorNome||'N/A'}</p><p><strong>Estado:</strong> ${pedido.status||'N/A'}</p>${entregaHtml}<div class="section-title">Pagamentos</div>${pagamentosHtml}<div class="section-title">Itens</div><ul>${itensHtml}</ul>${descricaoGeralHtml}${pedido.imagemPreviewPedidoBase64?`<div class="section-title">Preview</div><img class="pedido-preview-print" src="${pedido.imagemPreviewPedidoBase64}" alt="Preview" />`:''}<div class="payment-summary total-section"><p><strong>Total Pedido:</strong> R$ ${pedido.valorTotal?.toFixed(2).replace('.',',')||'0,00'}</p><p><strong>Total Pago:</strong> R$ ${totalPagoCalculado.toFixed(2).replace('.',',')}</p>${valorRestanteCalculado>0?`<p style="color:red"><strong>Restante:</strong> R$ ${valorRestanteCalculado.toFixed(2).replace('.',',')}</p>`:'<p style="color:green"><strong>Quitado</strong></p>'}</div><div class="print-button-container"><button class="print-button" onclick="window.print()">Imprimir</button></div><p class="footer-note">Gerado em: ${new Date().toLocaleString('pt-BR')}</p></div></body></html>`; 
             
             const nG = window.open('', '_blank'); 
             if (nG) { 
@@ -2123,9 +2102,10 @@
                     d.querySelector('.dimensoes-produto[id^="itemLargura"]').value = itemParaEditar.largura;
                     d.querySelector('.dimensoes-produto[id^="itemAltura"]').value = itemParaEditar.altura;
                 }
-                if (itemParaEditar.etapas) {
-                     d.dataset.etapas = JSON.stringify(itemParaEditar.etapas);
-                }
+                d.dataset.concluido = itemParaEditar.concluido || false;
+                d.dataset.concluidoPor = itemParaEditar.concluidoPor || '';
+                d.dataset.concluidoEm = itemParaEditar.concluidoEm ? JSON.stringify(itemParaEditar.concluidoEm) : '';
+
                 calcularValorItem(itemPedidoCount);
             }
 
@@ -2176,18 +2156,11 @@
                 let l=null,a=null;
                 if(tP==='metro'){l=parseFloat(document.getElementById(`itemLargura-${cId}`).value)||0;a=parseFloat(document.getElementById(`itemAltura-${cId}`).value)||0;}
                 if(pId&&q>0&&vI>=0) {
-                     let etapas = iF.dataset.etapas ? JSON.parse(iF.dataset.etapas) : {
-                        impressao: { concluido: false, concluidoPor: null, concluidoEm: null },
-                        producao: { concluido: false, concluidoPor: null, concluidoEm: null }
-                     };
-                     // Reconstituir timestamps se estiverem em formato JSON
-                     if (etapas.impressao.concluidoEm && typeof etapas.impressao.concluidoEm.seconds === 'number') {
-                        etapas.impressao.concluidoEm = new Timestamp(etapas.impressao.concluidoEm.seconds, etapas.impressao.concluidoEm.nanoseconds);
-                     }
-                     if (etapas.producao.concluidoEm && typeof etapas.producao.concluidoEm.seconds === 'number') {
-                        etapas.producao.concluidoEm = new Timestamp(etapas.producao.concluidoEm.seconds, etapas.producao.concluidoEm.nanoseconds);
-                     }
-                     d.itens.push({produtoId:pId,produtoNome:pN,tipoProduto:tP,quantidade:q,largura:l,altura:a,valorItem:vI, descricao: desc, etapas: etapas});
+                     let isConcluido = iF.dataset.concluido === 'true';
+                     let concluidoPor = iF.dataset.concluidoPor || null;
+                     let concluidoEm = null;
+                     try { concluidoEm = iF.dataset.concluidoEm ? new Timestamp(JSON.parse(iF.dataset.concluidoEm).seconds, JSON.parse(iF.dataset.concluidoEm).nanoseconds) : null; } catch(e) {}
+                     d.itens.push({produtoId:pId,produtoNome:pN,tipoProduto:tP,quantidade:q,largura:l,altura:a,valorItem:vI, descricao: desc, concluido: isConcluido, concluidoPor: concluidoPor, concluidoEm: concluidoEm });
                 }
                 else{exibirMensagem(`Item ${idx+1} inválido.`,"warning");formValido=false;}
             });
@@ -2197,15 +2170,17 @@
             
             const pData={clienteId:d.clienteId,clienteNome:d.clienteNome,vendedorId:d.vendedorId,vendedorNome:d.vendedorNome,pagamentos:d.pagamentos,dataEntrega:dEFinal,status:d.status,valorTotal:d.valorTotal,itens:d.itens,imagemPreviewPedidoBase64:d.imagemPreviewPedidoBase64, descricaoGeral: d.descricaoGeral}; 
             
-            try{const pCP=`artifacts/${shopInstanceAppId}/pedidos`;if(editingOrderId){const pR=doc(db,pCP,editingOrderId);const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;await setDoc(pR,pData);exibirMensagem('Pedido atualizado com sucesso!', 'success');}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,pCP),pData);exibirMensagem('Pedido guardado com sucesso!', 'success');} document.getElementById('formNovoPedido').reset();document.getElementById('editingOrderIdField').value='';editingOrderId=null;document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';document.getElementById('itensPedidoContainer').innerHTML='';document.getElementById('pagamentosContainer').innerHTML='';pagamentoCount=0;pedidoImagemBase64=null;const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}itemPedidoCount=0;atualizarValorTotalPedido();mostrarSecao('telaInicial',true);}catch(err){console.error(err);exibirMensagem('Erro ao processar pedido.','error');} 
+            try{const pCP=`artifacts/${shopInstanceAppId}/pedidos`;if(editingOrderId){const pR=doc(db,pCP,editingOrderId);const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;pData.entreguePorNome=oPD.entreguePorNome||null;pData.entreguePorId=oPD.entreguePorId||null;pData.entregueEm=oPD.entregueEm||null;await setDoc(pR,pData);}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,pCP),pData);exibirMensagem('Pedido guardado com sucesso!', 'success');} document.getElementById('formNovoPedido').reset();document.getElementById('editingOrderIdField').value='';editingOrderId=null;document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';document.getElementById('itensPedidoContainer').innerHTML='';document.getElementById('pagamentosContainer').innerHTML='';pagamentoCount=0;pedidoImagemBase64=null;const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}itemPedidoCount=0;atualizarValorTotalPedido();mostrarSecao('telaInicial',true);}catch(err){console.error(err);exibirMensagem('Erro ao processar pedido.','error');} 
         });
         function getStatusBadgeSimpleHTML(status){let bC='neutral';if(status==='Entregue')bC='success';else if(status==='Cancelado')bC='danger';else if(status==='Pronto para Retirada')bC='primary';else if(status.startsWith('Em Produção')||status==='Em Rota de Entrega')bC='info';else if(status==='Aguardando Aprovação')bC='warning';return`<span class="status-badge-simple ${bC}">${status}</span>`;}
         function renderizarListaCompletaPedidos() { const tbody = document.getElementById('listaTodosPedidos'); if (!tbody) return; tbody.innerHTML = ''; const fNC=document.getElementById('filtroNomeCliente')?.value.toLowerCase()||'',fNP=document.getElementById('filtroNumeroPedido')?.value.toLowerCase()||'',fDPS=document.getElementById('filtroDataPedido')?.value||'',fMP=document.getElementById('filtroMaterialProduto')?.value.toLowerCase()||''; let fSP=document.getElementById('filtroStatusPedido')?.value||''; const fC=document.getElementById('filtroClassificacaoPedido')?.value||'dataPedido_desc',fVI=document.getElementById('filtroVendedor')?.value||''; if(!fSP){if(loggedInUserRole==='impressor')fSP='Em Produção (Impressão)';} let pF=[...todosOsPedidosCache]; if(fNC)pF=pF.filter(p=>p.clienteNome&&p.clienteNome.toLowerCase().includes(fNC)); if(fNP)pF=pF.filter(p=>p.numeroPedido&&p.numeroPedido.toLowerCase().includes(fNP)); if(fDPS){const dF=new Date(fDPS+"T00:00:00");pF=pF.filter(p=>{if(p.dataPedido&&p.dataPedido.toDate){const dPO=p.dataPedido.toDate();return dPO.getFullYear()===dF.getFullYear()&&dPO.getMonth()===dF.getMonth()&&dPO.getDate()===dF.getDate();}return false;});} if(fMP)pF=pF.filter(p=>{if(p.itens&&Array.isArray(p.itens))return p.itens.some(i=>i.produtoNome&&i.produtoNome.toLowerCase().includes(fMP));return false;}); if(loggedInUserRole==='producao'&&!document.getElementById('filtroStatusPedido')?.value){const sP=["Em Produção (Arte)","Em Produção (Impressão)","Em Produção (Acabamento)"];pF=pF.filter(p=>sP.includes(p.status));}else if(fSP){pF=pF.filter(p=>p.status===fSP);} if(fVI)pF=pF.filter(p=>p.vendedorId===fVI); switch(fC){case'dataPedido_asc':pF.sort((a,b)=>(a.dataPedido?.toMillis()||0)-(b.dataPedido?.toMillis()||0));break;case'dataPedido_desc':pF.sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0));break;case'dataEntrega_asc':pF.sort((a,b)=>(a.dataEntrega?.toMillis()||0)-(b.dataEntrega?.toMillis()||0));break;case'dataEntrega_desc':pF.sort((a,b)=>(b.dataEntrega?.toMillis()||0)-(a.dataEntrega?.toMillis()||0));break;case'clienteNome_asc':pF.sort((a,b)=>(a.clienteNome||"").localeCompare(b.clienteNome||""));break;case'clienteNome_desc':pF.sort((a,b)=>(b.clienteNome||"").localeCompare(a.clienteNome||""));break;case'numeroPedido_asc':pF.sort((a,b)=>(a.numeroPedido||"").localeCompare(b.numeroPedido||"",undefined,{numeric:true}));break;case'numeroPedido_desc':pF.sort((a,b)=>(b.numeroPedido||"").localeCompare(a.numeroPedido||"",undefined,{numeric:true}));break;default:pF.sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0));} if(pF.length===0){ tbody.innerHTML='<tr><td colspan="7" class="text-center py-10">Nenhum pedido encontrado com os filtros aplicados.</td></tr>'; return; } pF.forEach(p=>{ const tr = document.createElement('tr'); const pM=JSON.stringify(p); const dPF=p.dataPedido?.toDate?p.dataPedido.toDate().toLocaleString('pt-BR',{day:'2-digit', month:'2-digit', year:'numeric'}):'N/A'; const dEF=p.dataEntrega?.toDate?p.dataEntrega.toDate().toLocaleDateString('pt-BR'):'N/A';
         const agora = new Date(); const dataEntrega = p.dataEntrega?.toDate ? p.dataEntrega.toDate() : null; let statusAtrasoClass = ''; if (dataEntrega && p.status !== 'Entregue' && p.status !== 'Cancelado') { const diffHoras = (dataEntrega - agora) / (1000 * 60 * 60); if (diffHoras < 0) { statusAtrasoClass = 'late'; } else if (diffHoras <= 1) { statusAtrasoClass = 'nearly-late'; } }
-        tr.innerHTML=` <td class="pedido-numero ${statusAtrasoClass}">${p.numeroPedido}</td> <td class="cliente-nome">${p.clienteNome}</td> <td>${dPF}</td> <td>${dEF}</td> <td class="font-medium">R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td> <td>${getStatusBadgeSimpleHTML(p.status)}</td> <td class="text-xs space-x-1.5 whitespace-nowrap"> <button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Ver Detalhes"><i class="fas fa-eye"></i></button> <button onclick="prepararEdicaoPedido(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Editar Pedido"><i class="fas fa-edit"></i></button> <button onclick="excluirPedido('${p.id}', '${p.numeroPedido}')" class="btn-icon-action text-red-500 hover:text-red-700" title="Excluir Pedido"><i class="fas fa-trash"></i></button> </td>`; tbody.appendChild(tr); }); }
+        const btnEntregue = (p.status !== 'Entregue' && p.status !== 'Cancelado') ? `<button onclick="marcarComoEntregue('${p.id}')" class="btn-icon-action" title="Marcar como Entregue">📦</button>` : '';
+        tr.innerHTML=` <td class="pedido-numero ${statusAtrasoClass}">${p.numeroPedido}</td> <td class="cliente-nome">${p.clienteNome}</td> <td>${dPF}</td> <td>${dEF}</td> <td class="font-medium">R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td> <td>${getStatusBadgeSimpleHTML(p.status)}</td> <td class="text-xs space-x-1.5 whitespace-nowrap"> <button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Ver Detalhes"><i class="fas fa-eye"></i></button> <button onclick="prepararEdicaoPedido(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Editar Pedido"><i class="fas fa-edit"></i></button> ${btnEntregue} <button onclick="excluirPedido('${p.id}', '${p.numeroPedido}')" class="btn-icon-action text-red-500 hover:text-red-700" title="Excluir Pedido"><i class="fas fa-trash"></i></button> </td>`; tbody.appendChild(tr); }); }
         function carregarUltimosPedidos() { if(!auth.currentUser)return;const tb=document.getElementById('ultimosPedidosTableBody');if(!tb)return;tb.innerHTML=''; const pODB=[...todosOsPedidosCache].sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0));const pPD=pODB.slice(0,5); if(pPD.length===0)tb.innerHTML=`<tr><td colspan="6" class="text-center text-slate-500 py-10">Nenhum pedido recente.</td></tr>`; else pPD.forEach(p=>{const tr=document.createElement('tr');const pPM=JSON.stringify(p);const dPF=p.dataPedido?.toDate?p.dataPedido.toDate().toLocaleDateString('pt-BR'):'N/A';
         const agora = new Date(); const dataEntrega = p.dataEntrega?.toDate ? p.dataEntrega.toDate() : null; let statusAtrasoClass = ''; if (dataEntrega && p.status !== 'Entregue' && p.status !== 'Cancelado') { const diffHoras = (dataEntrega - agora) / (1000 * 60 * 60); if (diffHoras < 0) { statusAtrasoClass = 'late'; } else if (diffHoras <= 1) { statusAtrasoClass = 'nearly-late'; } }
-        tr.innerHTML=`<td class="pedido-numero font-medium ${statusAtrasoClass}">${p.numeroPedido}</td><td>${p.clienteNome}</td><td>${dPF}</td><td class="font-medium">R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td><td>${getStatusBadgeSimpleHTML(p.status)}</td><td class="text-xs space-x-1 whitespace-nowrap"><button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(pPM)}')))" class="btn-icon-action text-sky-600 hover:text-sky-700" title="Detalhes"><i class="fas fa-eye"></i></button><button onclick="prepararEdicaoPedido(JSON.parse(decodeURIComponent('${encodeURIComponent(pPM)}')))" class="btn-icon-action text-indigo-600 hover:text-indigo-700" title="Editar"><i class="fas fa-edit"></i></button><button onclick="excluirPedido('${p.id}', '${p.numeroPedido}')" class="btn-icon-action text-red-600 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button></td>`;tb.appendChild(tr);}); }
+        const btnEntregue = (p.status !== 'Entregue' && p.status !== 'Cancelado') ? `<button onclick="marcarComoEntregue('${p.id}')" class="btn-icon-action" title="Marcar como Entregue">📦</button>` : '';
+        tr.innerHTML=`<td class="pedido-numero font-medium ${statusAtrasoClass}">${p.numeroPedido}</td><td>${p.clienteNome}</td><td>${dPF}</td><td class="font-medium">R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td><td>${getStatusBadgeSimpleHTML(p.status)}</td><td class="text-xs space-x-1 whitespace-nowrap"><button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(pPM)}')))" class="btn-icon-action text-sky-600 hover:text-sky-700" title="Detalhes"><i class="fas fa-eye"></i></button><button onclick="prepararEdicaoPedido(JSON.parse(decodeURIComponent('${encodeURIComponent(pPM)}')))" class="btn-icon-action text-indigo-600 hover:text-indigo-700" title="Editar"><i class="fas fa-edit"></i></button>${btnEntregue}<button onclick="excluirPedido('${p.id}', '${p.numeroPedido}')" class="btn-icon-action text-red-600 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button></td>`;tb.appendChild(tr);}); }
         function carregarTodosPedidos() { 
             if(!auth.currentUser) return; 
             const q=query(collection(db,`artifacts/${shopInstanceAppId}/pedidos`)); 
