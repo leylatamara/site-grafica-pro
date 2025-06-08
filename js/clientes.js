@@ -1,13 +1,27 @@
 // js/clientes.js
 
+/**
+ * Módulo de Clientes
+ * Este ficheiro gere todas as operações CRUD (Criar, Ler, Atualizar, Apagar)
+ * e a lógica de interface relacionada com os clientes.
+ */
+
 import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
+// Estado interno do módulo
 let clientesCache = [];
 let clienteSelecionadoId = null;
+
+// Dependências externas (injetadas pela função init)
 let getPedidosCache = () => [];
 let getRole = () => null;
 
+/**
+ * Renderiza um item da lista de clientes na interface.
+ * @param {object} cliente - O objeto do cliente a ser renderizado.
+ * @returns {HTMLElement} O elemento div do item da lista.
+ */
 function createClienteListItem(cliente) {
     const itemDiv = document.createElement('div');
     itemDiv.className = `item-list-display !cursor-pointer relative flex justify-between items-center ${cliente.id === clienteSelecionadoId ? 'selected' : ''}`;
@@ -25,6 +39,9 @@ function createClienteListItem(cliente) {
     return itemDiv;
 }
 
+/**
+ * Renderiza a lista completa de clientes, aplicando filtros.
+ */
 function renderizarListaClientes() {
     const listaEl = document.getElementById('listaClientes');
     const termo = document.getElementById('pesquisaClienteInput')?.value.toLowerCase() || '';
@@ -40,6 +57,10 @@ function renderizarListaClientes() {
     filtrados.forEach(c => listaEl.appendChild(createClienteListItem(c)));
 }
 
+/**
+ * Exibe os detalhes de um cliente selecionado e procura os seus pedidos.
+ * @param {string} id - O ID do cliente.
+ */
 function exibirDetalhesClienteEProcurarPedidos(id) {
     clienteSelecionadoId = id;
     renderizarListaClientes();
@@ -103,17 +124,66 @@ function excluirCliente(id, nome) {
     }});
 }
 
+// **INÍCIO DA CORREÇÃO**
+
+// --- Funções do Modal de Novo Cliente Rápido ---
+
+function abrirModalNovoClienteRapido() {
+    document.getElementById('formNovoClienteRapido')?.reset();
+    abrirModalEspecifico('modalNovoClienteRapidoOverlay');
+}
+
+function fecharModalNovoClienteRapido() {
+    fecharModalEspecifico('modalNovoClienteRapidoOverlay');
+}
+
+async function handleNovoClienteRapido(e) {
+    e.preventDefault();
+    const form = e.target;
+    const nome = form.clienteRapidoNome.value;
+    if (!nome.trim()) {
+        showNotification({ message: "Nome é obrigatório.", type: "warning" });
+        return;
+    }
+    const data = {
+        nome: nome,
+        telefone: form.clienteRapidoTelefone.value,
+        tipoCliente: form.clienteRapidoTipo.value,
+        criadoEm: Timestamp.now()
+    };
+    try {
+        const ref = await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), data);
+        showNotification({ message: 'Cliente registado!', type: 'success' });
+        fecharModalNovoClienteRapido();
+        // Atualiza o formulário de pedido com o novo cliente
+        document.getElementById('pedidoClienteSearch').value = nome;
+        document.getElementById('pedidoClienteId').value = ref.id;
+        document.getElementById('pedidoClienteResultados').classList.add('hidden');
+    } catch (err) {
+        showNotification({ message: 'Erro ao registar cliente.', type: 'error' });
+    }
+}
+
 export function init(deps) {
     getPedidosCache = deps.getPedidosCache;
     getRole = deps.getRole;
+    
     carregarClientes(() => renderizarListaClientes());
+
+    // Event Listeners
     document.getElementById('pesquisaClienteInput')?.addEventListener('input', renderizarListaClientes);
     document.getElementById('formCadastrarCliente')?.addEventListener('submit', handleCadastroCliente);
     document.getElementById('formEditarCliente')?.addEventListener('submit', handleSalvarEdicaoCliente);
+    document.getElementById('formNovoClienteRapido')?.addEventListener('submit', handleNovoClienteRapido);
     
+    // Expor funções para o escopo global
     window.abrirModalEditarCliente = abrirModalEditarCliente;
     window.excluirCliente = excluirCliente;
     window.fecharModalEditarCliente = () => fecharModalEspecifico('modalEditarClienteOverlay');
+    window.abrirModalNovoClienteRapido = abrirModalNovoClienteRapido;
+    window.fecharModalNovoClienteRapido = fecharModalNovoClienteRapido;
 }
+
+// **FIM DA CORREÇÃO**
 
 export const getClientes = () => clientesCache;
