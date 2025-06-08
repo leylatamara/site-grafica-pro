@@ -1345,20 +1345,20 @@
                     }
                     // Abrir o modal
                     modal.classList.remove('hidden');
-                    // Chamar carregarPermissoesSetor ao abrir o modal
-                    setTimeout(() => {
-                        if (typeof carregarPermissoesSetor === 'function') {
-                            carregarPermissoesSetor();
-                        } else if (window.carregarPermissoesSetor) {
-                            window.carregarPermissoesSetor();
-                        }
-                        // Adicionar event listener para o select de setor
+                    
+                    // Verificar se a função existe no escopo global
+                    if (typeof window.carregarPermissoesSetor === 'function') {
+                        // Chamar a função e configurar o event listener
+                        window.carregarPermissoesSetor();
                         const selectSetor = document.getElementById('selectSetorPermissao');
                         if (selectSetor) {
-                            selectSetor.removeEventListener('change', carregarPermissoesSetor);
-                            selectSetor.addEventListener('change', carregarPermissoesSetor);
+                            selectSetor.removeEventListener('change', window.carregarPermissoesSetor);
+                            selectSetor.addEventListener('change', window.carregarPermissoesSetor);
                         }
-                    }, 100);
+                    } else {
+                        console.error('Função carregarPermissoesSetor não encontrada');
+                        exibirMensagem('Erro ao carregar permissões. Por favor, recarregue a página.', 'error');
+                    }
                     return;
                 }
                 // Mostrar a seção solicitada

@@ -1254,3 +1254,39 @@ async function handleFormSubmit(e) {
         exibirMensagem('Erro ao salvar registro. Por favor, tente novamente.', 'error');
     }
 }
+
+// Função para carregar permissões do setor
+window.carregarPermissoesSetor = async function() {
+    try {
+        const setor = document.getElementById('selectSetorPermissao').value;
+        console.log('Carregando permissões para o setor:', setor);
+
+        // Buscar permissões do Firebase
+        const permissoesRef = collection(db, 'permissoes');
+        const q = query(permissoesRef, where('setor', '==', setor));
+        const querySnapshot = await getDocs(q);
+
+        // Se não existir permissões para este setor, inicializar com valores padrão
+        if (querySnapshot.empty) {
+            console.log('Nenhuma permissão encontrada para o setor:', setor);
+            await inicializarPermissoes();
+            return;
+        }
+
+        // Pegar o primeiro documento (deve haver apenas um por setor)
+        const permissaoDoc = querySnapshot.docs[0];
+        const permissoes = permissaoDoc.data().permissoes;
+
+        // Atualizar os checkboxes
+        const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            const pagina = checkbox.value;
+            checkbox.checked = permissoes[pagina] || false;
+        });
+
+        console.log('Permissões carregadas com sucesso para o setor:', setor);
+    } catch (error) {
+        console.error('Erro ao carregar permissões:', error);
+        exibirMensagem('Erro ao carregar permissões. Por favor, tente novamente.', 'error');
+    }
+};
