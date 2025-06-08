@@ -188,12 +188,12 @@
 
         // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
         const auth = getAuth(app);
-        const shopInstanceAppId = 'KepzIFlUZ432Os7';
+        const db = getFirestore(app);
+        const shopInstanceAppId = 'shop_01HXGXKZQZQZQZQZQZQZQZQZQZ';
+        console.log('shopInstanceAppId:', shopInstanceAppId);
 
         console.log('Firebase inicializado com configuração:', firebaseConfig);
-        console.log('Shop Instance ID:', shopInstanceAppId);
 
         // Função para formatar data
         function formatarData(timestamp) {
@@ -213,11 +213,25 @@
 
         // Função para validar o ID do pedido
         function validarPedidoId(pedidoId) {
-            // Se o ID contiver o shopInstanceAppId, removê-lo
+            console.log('Validando ID do pedido:', pedidoId);
+            
+            // Se o ID contém o shopInstanceAppId, remova-o
             if (pedidoId.includes(shopInstanceAppId)) {
-                pedidoId = pedidoId.replace(shopInstanceAppId + '/', '');
+                const partes = pedidoId.split('/');
+                const ultimaParte = partes[partes.length - 1];
+                console.log('ID corrigido:', ultimaParte);
+                return ultimaParte;
             }
-            console.log('ID do pedido após validação:', pedidoId);
+            
+            // Se o ID contém o caminho completo, extraia apenas o ID
+            if (pedidoId.includes('/')) {
+                const partes = pedidoId.split('/');
+                const ultimaParte = partes[partes.length - 1];
+                console.log('ID extraído do caminho:', ultimaParte);
+                return ultimaParte;
+            }
+            
+            console.log('ID mantido como está:', pedidoId);
             return pedidoId;
         }
 
