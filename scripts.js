@@ -253,39 +253,32 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-async function handleLogin(event) {
-    event.preventDefault();
-    
-    const email = document.getElementById('loginEmail').value;
-    const senha = document.getElementById('loginSenha').value;
-    
+async function handleLogin(codigoAcesso) {
     try {
         // Limpar dados antigos do localStorage
         localStorage.removeItem('loggedInUserRole');
         localStorage.removeItem('loggedInUserName');
+        localStorage.removeItem('loggedInUserId');
         
-        const usersRef = collection(db, `artifacts/${shopInstanceAppId}/users`);
-        const q = query(usersRef, where('email', '==', email));
+        const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
+        const q = query(funcionariosRef, where('codigoAcesso', '==', codigoAcesso));
         const querySnapshot = await getDocs(q);
         
         if (querySnapshot.empty) {
-            exibirMensagem('Usuário não encontrado.', 'error');
+            exibirMensagem('Código de acesso inválido.', 'error');
             return;
         }
         
-        const userDoc = querySnapshot.docs[0];
-        const userData = userDoc.data();
+        const funcionarioDoc = querySnapshot.docs[0];
+        const funcionarioData = funcionarioDoc.data();
         
-        if (userData.senha !== senha) {
-            exibirMensagem('Senha incorreta.', 'error');
-            return;
-        }
-        
-        loggedInUserRole = userData.cargo;
-        loggedInUserName = userData.nome;
+        loggedInUserRole = funcionarioData.cargo;
+        loggedInUserName = funcionarioData.nome;
+        loggedInUserIdGlobal = funcionarioDoc.id;
         
         localStorage.setItem('loggedInUserRole', loggedInUserRole);
         localStorage.setItem('loggedInUserName', loggedInUserName);
+        localStorage.setItem('loggedInUserId', loggedInUserIdGlobal);
         
         console.log('Login bem-sucedido. Cargo:', loggedInUserRole);
         
@@ -547,9 +540,14 @@ window.excluirCliente = (id, nome) => { showNotification({ message: `Excluir o c
 window.abrirModalEditarProduto = (produtoId) => { const p = produtosCache.find(prod => prod.id === produtoId); if(!p) return; document.getElementById('produtoIdParaEditar').value = p.id; document.getElementById('produtoNomeEditar').value = p.nome; document.getElementById('produtoDescricaoEditar').value = p.descricao; document.getElementById('produtoTipoPrecoEditar').value = p.tipoPreco; togglePrecoFieldsEditar(); document.getElementById('produtoPrecoUnidadeEditar').value = p.precoUnidade; document.getElementById('produtoPrecoMetroEditar').value = p.precoMetro; abrirModalEspecifico('modalEditarProdutoOverlay'); };
 window.fecharModalEditarProduto = () => fecharModalEspecifico('modalEditarProdutoOverlay');
 window.togglePrecoFieldsEditar = function() {
-    const t = document.getElementById('produtoTipoPrecoEditar')?.value;
-    document.getElementById('precoUnidadeFieldsEditar').classList.toggle('hidden', t === 'metro');
-    document.getElementById('precoMetroFieldsEditar').classList.toggle('hidden', t === 'unidade');
+    const tipoPreco = document.getElementById('produtoTipoPrecoEditar')?.value;
+    const precoUnidadeFields = document.getElementById('precoUnidadeFieldsEditar');
+    const precoMetroFields = document.getElementById('precoMetroFieldsEditar');
+    
+    if (precoUnidadeFields && precoMetroFields) {
+        precoUnidadeFields.classList.toggle('hidden', tipoPreco === 'metro');
+        precoMetroFields.classList.toggle('hidden', tipoPreco === 'unidade');
+    }
 };
 async function handleSalvarEdicaoProduto(e) { e.preventDefault(); const id = document.getElementById('produtoIdParaEditar').value; const dados = { nome: document.getElementById('produtoNomeEditar').value, tipoPreco: document.getElementById('produtoTipoPrecoEditar').value, precoUnidade: parseFloat(document.getElementById('produtoPrecoUnidadeEditar').value) || 0, precoMetro: parseFloat(document.getElementById('produtoPrecoMetroEditar').value) || 0, descricao: document.getElementById('produtoDescricaoEditar').value }; try { await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id), dados); exibirMensagem('Produto atualizado!', 'success'); fecharModalEditarProduto(); } catch (err) { exibirMensagem('Erro ao atualizar.', 'error'); console.error(err); } }
 window.excluirProduto = (id, nome) => { showNotification({ message: `Excluir o produto ${nome}?`, type: 'confirm-delete', onConfirm: async () => { try { await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id)); exibirMensagem('Produto excluído.', 'success'); } catch(err) { exibirMensagem('Erro ao excluir.', 'error'); console.error(err); } } }); };
@@ -721,6 +719,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if(produtoTipoPrecoEditarEl){
         togglePrecoFieldsEditar();
     }
+
+    // Adicionar evento de submit do formulário de login
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const codigoAcesso = document.getElementById('codigoAcesso').value;
+            handleLogin(codigoAcesso);
+        });
+    }
 });
 
 // Função para inicializar as permissões
@@ -832,9 +840,14 @@ function fecharModalGerenciarPermissoes() {
 }
 
 window.togglePrecoFields = function() {
-    const t = document.getElementById('produtoTipoPreco')?.value;
-    document.getElementById('precoUnidadeFields').classList.toggle('hidden', t === 'metro');
-    document.getElementById('precoMetroFields').classList.toggle('hidden', t === 'unidade');
+    const tipoPreco = document.getElementById('produtoTipoPreco')?.value;
+    const precoUnidadeFields = document.getElementById('precoUnidadeFields');
+    const precoMetroFields = document.getElementById('precoMetroFields');
+    
+    if (precoUnidadeFields && precoMetroFields) {
+        precoUnidadeFields.classList.toggle('hidden', tipoPreco === 'metro');
+        precoMetroFields.classList.toggle('hidden', tipoPreco === 'unidade');
+    }
 };
 
 async function carregarClientes() {
@@ -846,5 +859,41 @@ async function carregarClientes() {
     } catch (error) {
         console.error('Erro ao carregar clientes:', error);
         window.clientesCache = [];
+    }
+}
+
+async function carregarProdutos() {
+    try {
+        const produtosRef = collection(db, `artifacts/${shopInstanceAppId}/produtos`);
+        const snapshot = await getDocs(produtosRef);
+        window.produtosCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Se quiser popular algum select ou lista, faça aqui
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        window.produtosCache = [];
+    }
+}
+
+async function carregarFuncionarios() {
+    try {
+        const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
+        const snapshot = await getDocs(funcionariosRef);
+        window.funcionariosCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Se quiser popular algum select ou lista, faça aqui
+    } catch (error) {
+        console.error('Erro ao carregar funcionários:', error);
+        window.funcionariosCache = [];
+    }
+}
+
+async function carregarFornecedores() {
+    try {
+        const fornecedoresRef = collection(db, `artifacts/${shopInstanceAppId}/fornecedores`);
+        const snapshot = await getDocs(fornecedoresRef);
+        window.fornecedoresCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Se quiser popular algum select ou lista, faça aqui
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores:', error);
+        window.fornecedoresCache = [];
     }
 }
