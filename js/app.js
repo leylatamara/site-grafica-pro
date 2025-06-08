@@ -57,7 +57,7 @@ import { initRouteProtection, canAccessPage } from './permissions.js';
 import { initDatabase } from './database.js';
 
 // Inicialização do aplicativo
-async function initApp() {
+export async function initApp() {
     try {
         // Inicializar banco de dados
         await initDatabase();
