@@ -546,7 +546,11 @@ window.excluirCliente = (id, nome) => { showNotification({ message: `Excluir o c
 // Produtos
 window.abrirModalEditarProduto = (produtoId) => { const p = produtosCache.find(prod => prod.id === produtoId); if(!p) return; document.getElementById('produtoIdParaEditar').value = p.id; document.getElementById('produtoNomeEditar').value = p.nome; document.getElementById('produtoDescricaoEditar').value = p.descricao; document.getElementById('produtoTipoPrecoEditar').value = p.tipoPreco; togglePrecoFieldsEditar(); document.getElementById('produtoPrecoUnidadeEditar').value = p.precoUnidade; document.getElementById('produtoPrecoMetroEditar').value = p.precoMetro; abrirModalEspecifico('modalEditarProdutoOverlay'); };
 window.fecharModalEditarProduto = () => fecharModalEspecifico('modalEditarProdutoOverlay');
-window.togglePrecoFieldsEditar = () => { const t = document.getElementById('produtoTipoPrecoEditar').value; document.getElementById('precoUnidadeFieldsEditar').classList.toggle('hidden', t === 'metro'); document.getElementById('precoMetroFieldsEditar').classList.toggle('hidden', t === 'unidade'); };
+window.togglePrecoFieldsEditar = function() {
+    const t = document.getElementById('produtoTipoPrecoEditar')?.value;
+    document.getElementById('precoUnidadeFieldsEditar').classList.toggle('hidden', t === 'metro');
+    document.getElementById('precoMetroFieldsEditar').classList.toggle('hidden', t === 'unidade');
+};
 async function handleSalvarEdicaoProduto(e) { e.preventDefault(); const id = document.getElementById('produtoIdParaEditar').value; const dados = { nome: document.getElementById('produtoNomeEditar').value, tipoPreco: document.getElementById('produtoTipoPrecoEditar').value, precoUnidade: parseFloat(document.getElementById('produtoPrecoUnidadeEditar').value) || 0, precoMetro: parseFloat(document.getElementById('produtoPrecoMetroEditar').value) || 0, descricao: document.getElementById('produtoDescricaoEditar').value }; try { await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id), dados); exibirMensagem('Produto atualizado!', 'success'); fecharModalEditarProduto(); } catch (err) { exibirMensagem('Erro ao atualizar.', 'error'); console.error(err); } }
 window.excluirProduto = (id, nome) => { showNotification({ message: `Excluir o produto ${nome}?`, type: 'confirm-delete', onConfirm: async () => { try { await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id)); exibirMensagem('Produto excluído.', 'success'); } catch(err) { exibirMensagem('Erro ao excluir.', 'error'); console.error(err); } } }); };
 
@@ -826,3 +830,9 @@ async function verificarPermissaoPagina(pagina) {
 function fecharModalGerenciarPermissoes() {
     fecharModalEspecifico('modalGerenciarPermissoesOverlay');
 }
+
+window.togglePrecoFields = function() {
+    const t = document.getElementById('produtoTipoPreco')?.value;
+    document.getElementById('precoUnidadeFields').classList.toggle('hidden', t === 'metro');
+    document.getElementById('precoMetroFields').classList.toggle('hidden', t === 'unidade');
+};
