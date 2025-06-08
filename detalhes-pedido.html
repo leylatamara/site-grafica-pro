@@ -161,11 +161,17 @@
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            // Suas configurações do Firebase aqui
+            apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
+            authDomain: "sistema-grafica-pro.firebaseapp.com",
+            projectId: "sistema-grafica-pro",
+            storageBucket: "sistema-grafica-pro.firebasestorage.app",
+            messagingSenderId: "1043193530848",
+            appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Função para formatar data
         function formatarData(data) {
@@ -202,12 +208,12 @@
                 const pedido = pedidoDoc.data();
                 
                 // Preencher dados básicos
-                document.getElementById('numeroPedido').textContent = `#PED-${pedidoId}`;
-                document.getElementById('nomeCliente').textContent = pedido.nomeCliente || '-';
-                document.getElementById('nomeVendedor').textContent = pedido.nomeVendedor || '-';
+                document.getElementById('numeroPedido').textContent = pedido.numeroPedido || `#PED-${pedidoId}`;
+                document.getElementById('nomeCliente').textContent = pedido.clienteNome || '-';
+                document.getElementById('nomeVendedor').textContent = pedido.vendedorNome || '-';
                 document.getElementById('dataPedido').textContent = formatarData(pedido.dataPedido);
-                document.getElementById('previsaoEntrega').textContent = formatarData(pedido.previsaoEntrega);
-                document.getElementById('estadoPedido').textContent = pedido.estado || '-';
+                document.getElementById('previsaoEntrega').textContent = formatarData(pedido.dataEntrega);
+                document.getElementById('estadoPedido').textContent = pedido.status || '-';
                 document.getElementById('confirmacaoEstado').textContent = pedido.confirmacaoEstado || '-';
                 
                 // Preencher itens
@@ -220,8 +226,8 @@
                         tr.innerHTML = `
                             <td class="py-4 px-4 whitespace-nowrap">${item.quantidade}x</td>
                             <td class="py-4 px-4">
-                                <p class="font-semibold text-gray-800">${item.descricao}</p>
-                                <p class="text-gray-500 text-sm mt-1">${item.observacoes || ''}</p>
+                                <p class="font-semibold text-gray-800">${item.produtoNome}</p>
+                                <p class="text-gray-500 text-sm mt-1">${item.descricao || ''}</p>
                                 <div class="flex items-center space-x-4 text-sm text-gray-600 mt-2">
                                     <span>Impressão 
                                         <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -232,7 +238,7 @@
                                     <span>Preview</span>
                                 </div>
                             </td>
-                            <td class="py-4 px-4 text-right font-medium">${formatarValor(item.total)}</td>
+                            <td class="py-4 px-4 text-right font-medium">${formatarValor(item.valorItem)}</td>
                         `;
                         itensContainer.appendChild(tr);
                     });
@@ -247,17 +253,18 @@
                         const div = document.createElement('div');
                         div.className = 'flex justify-between';
                         div.innerHTML = `
-                            <span>${pagamento.forma} <span class="text-gray-400">(${formatarData(pagamento.data)})</span></span>
-                            <span class="font-medium">${formatarValor(pagamento.valor)}</span>
+                            <span>${pagamento.forma} <span class="text-gray-400">(${formatarData(pagamento.dataPagamento)})</span></span>
+                            <span class="font-medium">${formatarValor(pagamento.valorPago)}</span>
                         `;
                         pagamentosContainer.appendChild(div);
                     });
                 }
 
                 // Preencher totais
-                document.getElementById('totalPedido').textContent = formatarValor(pedido.totalPedido);
-                document.getElementById('totalPago').textContent = formatarValor(pedido.totalPago);
-                document.getElementById('statusPagamento').textContent = pedido.statusPagamento || '-';
+                document.getElementById('totalPedido').textContent = formatarValor(pedido.valorTotal);
+                const totalPago = pedido.pagamentos?.reduce((acc, p) => acc + (p.valorPago || 0), 0) || 0;
+                document.getElementById('totalPago').textContent = formatarValor(totalPago);
+                document.getElementById('statusPagamento').textContent = totalPago >= pedido.valorTotal ? 'Pago' : 'Pendente';
 
                 // Data de geração
                 document.getElementById('dataGeracao').textContent = `Gerado em: ${formatarData(new Date())}`;
@@ -272,4 +279,4 @@
         window.addEventListener('load', carregarDadosPedido);
     </script>
 </body>
-</html> 
+</html>
