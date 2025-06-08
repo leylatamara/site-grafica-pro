@@ -359,8 +359,11 @@
             }
         }
 
-        // Carregar dados quando a página carregar
-        window.addEventListener('load', carregarDadosPedido);
+        // Expor a função globalmente
+        window.carregarDadosPedido = carregarDadosPedido;
+
+        // Carregar dados ao iniciar a página
+        document.addEventListener('DOMContentLoaded', carregarDadosPedido);
     </script>
 </body>
 </html>

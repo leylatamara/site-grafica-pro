@@ -905,8 +905,12 @@ window.carregarFornecedores = async function carregarFornecedores() {
 // Função para marcar item como impresso
 async function marcarItemComoImpresso(pedidoId, itemIndex) {
     try {
+        console.log('Iniciando marcarItemComoImpresso:', { pedidoId, itemIndex });
+        
         const userRole = localStorage.getItem('loggedInUserRole');
         const userName = localStorage.getItem('loggedInUserName');
+        
+        console.log('Dados do usuário:', { userRole, userName });
 
         if (!['impressor', 'admin'].includes(userRole)) {
             alert('Você não tem permissão para marcar itens como impressos');
@@ -914,7 +918,10 @@ async function marcarItemComoImpresso(pedidoId, itemIndex) {
         }
 
         const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+        console.log('Referência do pedido:', pedidoRef.path);
+        
         const pedidoDoc = await getDoc(pedidoRef);
+        console.log('Pedido existe:', pedidoDoc.exists());
 
         if (!pedidoDoc.exists()) {
             alert('Pedido não encontrado');
@@ -922,6 +929,8 @@ async function marcarItemComoImpresso(pedidoId, itemIndex) {
         }
 
         const pedido = pedidoDoc.data();
+        console.log('Dados do pedido:', pedido);
+        
         if (!pedido.itens || !pedido.itens[itemIndex]) {
             alert('Item não encontrado');
             return;
@@ -933,30 +942,45 @@ async function marcarItemComoImpresso(pedidoId, itemIndex) {
         }
 
         // Atualizar status de impressão
-        pedido.itens[itemIndex].productionSteps.impressao = {
-            concluido: true,
-            responsavel: userName,
-            data: new Date().toISOString()
+        const updateData = {
+            [`itens.${itemIndex}.productionSteps.impressao`]: {
+                concluido: true,
+                responsavel: userName,
+                data: new Date().toISOString()
+            }
         };
+        
+        console.log('Dados para atualização:', updateData);
 
         // Atualizar no banco de dados
-        await updateDoc(pedidoRef, {
-            [`itens.${itemIndex}.productionSteps`]: pedido.itens[itemIndex].productionSteps
-        });
+        await updateDoc(pedidoRef, updateData);
+        console.log('Atualização concluída com sucesso');
 
         alert('Item marcado como impresso com sucesso!');
-        carregarDadosPedido(); // Recarregar os dados
+        
+        // Recarregar os dados
+        if (typeof carregarDadosPedido === 'function') {
+            console.log('Recarregando dados do pedido...');
+            await carregarDadosPedido();
+        } else {
+            console.log('Função carregarDadosPedido não encontrada');
+            window.location.reload();
+        }
     } catch (error) {
         console.error('Erro ao marcar item como impresso:', error);
-        alert('Erro ao marcar item como impresso');
+        alert('Erro ao marcar item como impresso: ' + error.message);
     }
 }
 
 // Função para marcar item como acabado
 async function marcarItemComoAcabado(pedidoId, itemIndex) {
     try {
+        console.log('Iniciando marcarItemComoAcabado:', { pedidoId, itemIndex });
+        
         const userRole = localStorage.getItem('loggedInUserRole');
         const userName = localStorage.getItem('loggedInUserName');
+        
+        console.log('Dados do usuário:', { userRole, userName });
 
         if (!['producao', 'admin'].includes(userRole)) {
             alert('Você não tem permissão para marcar itens como acabados');
@@ -964,7 +988,10 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
         }
 
         const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+        console.log('Referência do pedido:', pedidoRef.path);
+        
         const pedidoDoc = await getDoc(pedidoRef);
+        console.log('Pedido existe:', pedidoDoc.exists());
 
         if (!pedidoDoc.exists()) {
             alert('Pedido não encontrado');
@@ -972,6 +999,8 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
         }
 
         const pedido = pedidoDoc.data();
+        console.log('Dados do pedido:', pedido);
+        
         if (!pedido.itens || !pedido.itens[itemIndex]) {
             alert('Item não encontrado');
             return;
@@ -983,22 +1012,33 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
         }
 
         // Atualizar status de acabamento
-        pedido.itens[itemIndex].productionSteps.acabamento = {
-            concluido: true,
-            responsavel: userName,
-            data: new Date().toISOString()
+        const updateData = {
+            [`itens.${itemIndex}.productionSteps.acabamento`]: {
+                concluido: true,
+                responsavel: userName,
+                data: new Date().toISOString()
+            }
         };
+        
+        console.log('Dados para atualização:', updateData);
 
         // Atualizar no banco de dados
-        await updateDoc(pedidoRef, {
-            [`itens.${itemIndex}.productionSteps`]: pedido.itens[itemIndex].productionSteps
-        });
+        await updateDoc(pedidoRef, updateData);
+        console.log('Atualização concluída com sucesso');
 
         alert('Item marcado como acabado com sucesso!');
-        carregarDadosPedido(); // Recarregar os dados
+        
+        // Recarregar os dados
+        if (typeof carregarDadosPedido === 'function') {
+            console.log('Recarregando dados do pedido...');
+            await carregarDadosPedido();
+        } else {
+            console.log('Função carregarDadosPedido não encontrada');
+            window.location.reload();
+        }
     } catch (error) {
         console.error('Erro ao marcar item como acabado:', error);
-        alert('Erro ao marcar item como acabado');
+        alert('Erro ao marcar item como acabado: ' + error.message);
     }
 }
 
