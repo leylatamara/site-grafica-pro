@@ -5,7 +5,7 @@
  * Orquestra a aplicação, importa e inicializa todos os módulos.
  */
 
-// MÓDULOS ESSENCIAIS (agora importados pelos "apelidos" do import map)
+// MÓDULOS ESSENCIAIS
 import { initAuth, handleLogin, logout } from 'auth';
 import { ajustarPaddingBody, setActiveMenuLink } from 'ui';
 import { injectAllTemplates } from 'templates';
@@ -29,59 +29,73 @@ let permissoesDoCargo = [];
 
 injectAllTemplates();
 
+/**
+ * Inicia a sessão de um utilizador, configurando a UI e carregando os dados.
+ * @param {object} userData - Os dados do utilizador logado.
+ */
+async function startUserSession(userData) {
+    loggedInUserRole = userData.role;
+    loggedInUserName = userData.name;
+    loggedInUserIdGlobal = userData.id;
+
+    // Carrega as permissões para o cargo do utilizador
+    await initPermissoes();
+    permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
+
+    const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
+    if (loggedInUserNameDisplay) {
+        loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
+    }
+
+    // Configura a visibilidade da aplicação
+    document.body.classList.add('app-visible');
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+
+    configurarAcessoPorCargo();
+    
+    // Define a página inicial com base nas permissões
+    const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
+    if (paginaInicial) {
+        mostrarSecao(paginaInicial, true);
+    } else {
+        document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
+    }
+
+    // Inicializa todos os outros módulos que dependem de um utilizador logado
+    const commonDeps = {
+        getRole: () => loggedInUserRole,
+        getUserName: () => loggedInUserName,
+        getUserId: () => loggedInUserIdGlobal,
+        mostrarSecao,
+        setActiveMenuLink,
+        atualizarDashboard
+    };
+    
+    await Promise.all([
+        initFuncionarios(commonDeps),
+        initFornecedores(commonDeps),
+        initProdutos(commonDeps),
+    ]);
+    
+    initClientes({ ...commonDeps, getPedidosCache: getPedidos });
+    initPedidos({ ...commonDeps, getClientes, getProdutos });
+}
+
 initAuth({
-    onUserLoggedIn: async (userData) => {
-        loggedInUserRole = userData.role;
-        loggedInUserName = userData.name;
-        loggedInUserIdGlobal = userData.id;
-
-        await initPermissoes();
-        permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
-
-        const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-        if (loggedInUserNameDisplay) {
-            loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
-        }
-
-        document.body.classList.add('app-visible');
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appContainer').classList.remove('hidden');
-
-        configurarAcessoPorCargo();
-        
-        const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
-        if (paginaInicial) {
-            mostrarSecao(paginaInicial, true);
-        } else {
-            document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
-        }
-    },
+    onUserLoggedIn: startUserSession, // Reutiliza a função de início de sessão
     onUserLoggedOut: () => {
         document.body.classList.remove('app-visible');
         document.getElementById('loginScreen').classList.remove('hidden');
         document.getElementById('appContainer').classList.add('hidden');
         document.body.style.paddingTop = '0px';
     },
-    onAuthReady: async () => {
-        const commonDeps = {
-            getRole: () => loggedInUserRole,
-            getUserName: () => loggedInUserName,
-            getUserId: () => loggedInUserIdGlobal,
-            mostrarSecao,
-            setActiveMenuLink,
-            atualizarDashboard
-        };
-        
-        await Promise.all([
-            initFuncionarios(commonDeps),
-            initFornecedores(commonDeps),
-            initProdutos(commonDeps),
-        ]);
-        
-        initClientes({ ...commonDeps, getPedidosCache: getPedidos });
-        initPedidos({ ...commonDeps, getClientes, getProdutos });
+    onAuthReady: () => {
+        // A lógica principal agora acontece em onUserLoggedIn
+        console.log("Autenticação pronta.");
     }
 });
+
 
 // --- LÓGICA DE NAVEGAÇÃO E UI ---
 
@@ -170,11 +184,15 @@ function atualizarDashboard() {
 }
 
 // --- EVENT LISTENERS GERAIS ---
-document.getElementById('loginForm')?.addEventListener('submit', (e) => {
+document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    handleLogin(document.getElementById('codigoAcesso').value, () => {
-        window.location.reload();
-    });
+    const codigo = document.getElementById('codigoAcesso').value;
+    const userData = await handleLogin(codigo);
+    
+    if (userData) {
+        // Se o login for bem-sucedido, inicia a sessão diretamente
+        await startUserSession(userData);
+    }
 });
 document.getElementById('logoutButton')?.addEventListener('click', logout);
 

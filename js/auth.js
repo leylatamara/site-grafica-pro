@@ -7,60 +7,53 @@
 
 import { auth, db, onAuthStateChanged, signInAnonymously, getDocs, collection, query, where, shopInstanceAppId } from './firebase-config.js';
 
-// **NOVO: Registo de diagnóstico para verificar o ID da instância no arranque**
-console.log(`[Auth] Módulo de autenticação carregado. shopInstanceAppId: ${shopInstanceAppId}`);
-
 /**
- * Realiza o login do funcionário com base no código de acesso.
+ * Realiza o login do funcionário e retorna os dados em caso de sucesso.
  * @param {string} codigo - O código de acesso inserido.
- * @param {function} onSuccess - Callback a ser executado em caso de sucesso no login.
+ * @returns {object|null} Retorna o objeto com os dados do utilizador ou null em caso de falha.
  */
-export async function handleLogin(codigo, onSuccess) {
+export async function handleLogin(codigo) {
     const loginErrorMessage = document.getElementById('loginErrorMessage');
     loginErrorMessage.classList.add('hidden');
 
     if (!auth.currentUser) {
         loginErrorMessage.textContent = "Aguardando autenticação. Tente novamente.";
         loginErrorMessage.classList.remove('hidden');
-        return;
+        return null;
     }
 
     try {
         const collectionPath = `artifacts/${shopInstanceAppId}/funcionarios`;
-        
-        // **NOVO: Registos de diagnóstico**
-        console.log(`[Auth] Tentando login com código: "${codigo}"`);
-        console.log(`[Auth] Consultando a coleção no caminho: "${collectionPath}"`);
-
-        const funcionariosRef = collection(db, collectionPath);
-        const q = query(funcionariosRef, where("codigoAcesso", "==", codigo));
+        const q = query(collection(db, collectionPath), where("codigoAcesso", "==", codigo));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-            console.log("[Auth] Funcionário encontrado!");
             const funcionarioDoc = querySnapshot.docs[0];
             const funcionarioData = funcionarioDoc.data();
             
-            localStorage.setItem('loggedInUserRole', funcionarioData.cargo.toLowerCase());
-            localStorage.setItem('loggedInUserName', funcionarioData.nome);
-            localStorage.setItem('loggedInUserId', funcionarioDoc.id);
-
-            onSuccess({
+            const userData = {
                 role: funcionarioData.cargo.toLowerCase(),
                 name: funcionarioData.nome,
                 id: funcionarioDoc.id
-            });
+            };
+            
+            // Armazena os dados do utilizador no localStorage para persistir a sessão
+            localStorage.setItem('loggedInUserRole', userData.role);
+            localStorage.setItem('loggedInUserName', userData.name);
+            localStorage.setItem('loggedInUserId', userData.id);
+
+            return userData; // Retorna os dados em caso de sucesso
 
         } else {
-            // **NOVO: Registo de diagnóstico para falha**
-            console.log("[Auth] Nenhum funcionário encontrado com esse código de acesso no caminho especificado.");
             loginErrorMessage.textContent = "Código inválido.";
             loginErrorMessage.classList.remove('hidden');
+            return null; // Retorna null em caso de falha
         }
     } catch (error) {
         console.error("[Auth] Erro durante a tentativa de login:", error);
-        loginErrorMessage.textContent = "Ocorreu um erro ao tentar fazer login. Verifique a consola para mais detalhes.";
+        loginErrorMessage.textContent = "Ocorreu um erro ao tentar fazer login.";
         loginErrorMessage.classList.remove('hidden');
+        return null;
     }
 }
 
