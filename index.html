@@ -1,69 +1,194 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistema de Gestão para Gráficas Rápidas">
-    <meta name="theme-color" content="#0ea5e9">
     <title>Sistema Gráfica Rápida - Design Interativo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/leylatamara/site-grafica-pro/styles.css?v=1.4">
-
-    <!-- Import Map para gerir os módulos JavaScript -->
-    <script type="importmap">
-      {
-        "imports": {
-          "firebase-config": "./js/firebase-config.js?v=1.4",
-          "auth": "./js/auth.js?v=1.4",
-          "ui": "./js/ui.js?v=1.4",
-          "templates": "./js/templates.js?v=1.4",
-          "clientes": "./js/clientes.js?v=1.4",
-          "produtos": "./js/produtos.js?v=1.4",
-          "funcionarios": "./js/funcionarios.js?v=1.4",
-          "fornecedores": "./js/fornecedores.js?v=1.4",
-          "pedidos": "./js/pedidos.js?v=1.4",
-          "permissoes": "./js/permissoes.js?v=1.4"
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --color-bg: #ffffff;
+            --color-fg: #000000;
+            --color-primary: #0ea5e9;
+            --color-secondary: #64748b;
+            --color-accent: #f59e0b;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+            --color-info: #3b82f6;
         }
-      }
-    </script>
+
+        [data-theme="dark"] {
+            --color-bg: #1e293b;
+            --color-fg: #f8fafc;
+            --color-primary: #38bdf8;
+            --color-secondary: #94a3b8;
+            --color-accent: #fbbf24;
+            --color-success: #4ade80;
+            --color-danger: #f87171;
+            --color-warning: #fbbf24;
+            --color-info: #60a5fa;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-fg);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            color: var(--color-fg);
+            transition: background-color 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--color-secondary);
+            opacity: 0.8;
+        }
+
+        /* Estilos dos componentes */
+        .input-field {
+            background-color: var(--color-bg);
+            color: var(--color-fg);
+            border: 1px solid var(--color-secondary);
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px var(--color-primary);
+        }
+
+        .btn {
+            background-color: var(--color-primary);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background-color: var(--color-secondary);
+        }
+
+        .card {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-secondary);
+            transition: all 0.3s;
+        }
+
+        .material-table-card {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-secondary);
+        }
+
+        .material-data-table th {
+            background-color: var(--color-secondary);
+            color: var(--color-bg);
+        }
+
+        .material-data-table td {
+            border-color: var(--color-secondary);
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content-wrapper {
+            background-color: var(--color-bg);
+            color: var(--color-fg);
+        }
+
+        .notification-bar {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-secondary);
+            color: var(--color-fg);
+        }
+
+        .login-card {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-secondary);
+            color: var(--color-fg);
+        }
+
+        .exo-menu {
+            background-color: var(--color-bg);
+            border-bottom: 1px solid var(--color-secondary);
+        }
+
+        .exo-menu > li > a {
+            color: var(--color-fg);
+        }
+
+        .exo-menu > li:hover > a {
+            background-color: var(--color-secondary);
+        }
+
+        .drop-down-ul {
+            background-color: var(--color-bg);
+            border: 1px solid var(--color-secondary);
+        }
+
+        .drop-down-ul > li > a {
+            color: var(--color-fg);
+        }
+
+        .drop-down-ul > li:hover > a {
+            background-color: var(--color-secondary);
+        }
+    </style>
 </head>
 <body>
-    <!-- Barra de Notificações -->
-    <div id="notificationBar" class="notification-bar" role="alert" aria-live="polite">
+    <!-- Barra de Notificações (NOVA) -->
+    <div id="notificationBar" class="notification-bar">
         <div class="notification-content">
-            <span id="notificationIcon" class="text-xl" aria-hidden="true"></span>
+            <span id="notificationIcon" class="text-xl"></span>
             <span id="notificationMessage"></span>
         </div>
-        <div id="notificationActions"></div>
-    </div>
-
-    <!-- Tela de Login -->
-    <div id="loginScreen" role="dialog" aria-labelledby="loginTitle">
-        <div class="login-card">
-            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO" width="150" height="60">
-            <h2 id="loginTitle" class="login-title">Acesso ao Sistema</h2>
-            <p class="login-subtitle">Insira o seu código de funcionário para continuar.</p>
-            <form id="loginForm" aria-describedby="loginErrorMessage">
-                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required aria-required="true">
-                <button type="submit" class="login-button">Entrar</button>
-            </form>
-            <p id="loginErrorMessage" class="hidden" role="alert"></p>
+        <div id="notificationActions">
+            <!-- Botões serão injetados aqui -->
         </div>
     </div>
 
-    <!-- Container Principal -->
+    <!-- Container da Tela de Login -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO">
+            <h2 class="login-title">Acesso ao Sistema</h2>
+            <p class="login-subtitle">Insira o seu código de funcionário para continuar.</p>
+            <form id="loginForm">
+                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required>
+                <button type="submit" class="login-button">Entrar</button>
+            </form>
+            <p id="loginErrorMessage" class="hidden"></p>
+        </div>
+    </div>
+
+    <!-- Container Principal da Aplicação -->
     <div id="appContainer" class="hidden">
-        <header class="exo-menu-container">
+        <div class="exo-menu-container"> <!-- Este é o container geral do cabeçalho agora -->
             <div class="header-top-row flex justify-between items-center">
                 <div class="logo-area flex-shrink-0">
-                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8" width="120" height="32">
+                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8">
                 </div>
                 <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
-                <div class="actions-area flex-shrink-0"> 
-                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded" aria-label="Sair do sistema"><i class="fas fa-sign-out-alt mr-1.5" aria-hidden="true"></i>Sair</button>
+                <div class="actions-area flex-shrink-0 flex items-center gap-4"> 
+                    <button id="themeToggle" class="theme-toggle" aria-label="Alternar tema">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button>
                 </div>
             </div>
 
@@ -75,96 +200,762 @@
                     <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
                 </div>
             </div>
-
-            <nav class="menu-bar-wrapper" role="navigation" aria-label="Menu principal"> 
+        
+            <div class="menu-bar-wrapper"> 
                 <ul class="exo-menu clearfix">
-                    <li data-section-id="telaInicial">
-                        <a href="#" data-section="telaInicial" aria-label="Ir para página inicial">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-home"></i></span>Home
+                    <li data-role-access="all">
+                        <a href="#" onclick="mostrarSecao('telaInicial', true)" data-section="telaInicial">
+                            <span class="icon"><i class="fa fa-home"></i></span>Home
                         </a>
                     </li>
-                    <li data-section-id="novoPedido">
-                        <a href="#" data-section="novoPedido" aria-label="Criar novo pedido">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-plus"></i></span>Novo Pedido
+                    <li data-role-access="admin,vendedor">
+                        <a href="#" onclick="mostrarSecao('novoPedido', true)" data-section="novoPedido">
+                            <span class="icon"><i class="fa fa-plus"></i></span>Novo Pedido
                         </a>
                     </li>
-                    <li data-section-id="editarPedido" class="hidden">
-                        <a href="#" data-section="editarPedido" aria-label="Editar pedido">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-edit"></i></span>Editar Pedido
-                        </a>
-                    </li>
-                    <li class="drop-down" id="dropdownCadastrosMenu">
-                        <a href="#" aria-haspopup="true" aria-expanded="false">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-archive"></i></span>
+                    <li class="drop-down" data-role-access="admin,vendedor,designer,impressor,producao" id="dropdownCadastrosMenu">
+                        <a href="#">
+                            <span class="icon"><i class="fa fa-archive"></i></span>
                             Cadastros
-                            <span class="arrow" aria-hidden="true">&#9662;</span>
+                            <span class="arrow">&#9662;</span>
                         </a>
-                        <ul class="drop-down-ul" role="menu">
-                            <li data-section-id="cadastrarCliente"><a href="#" data-section="cadastrarCliente" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-users"></i></span>Clientes</a></li>
-                            <li data-section-id="cadastrarProduto"><a href="#" data-section="cadastrarProduto" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-box"></i></span>Produtos</a></li>
-                            <li data-section-id="cadastrarFuncionario"><a href="#" data-section="cadastrarFuncionario" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
-                            <li data-section-id="cadastrarFornecedor"><a href="#" data-section="cadastrarFornecedor" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
+                        <ul class="drop-down-ul">
+                            <li data-role-access="admin,vendedor">
+                                <a href="#" onclick="mostrarSecao('cadastrarCliente', true)" data-section="cadastrarCliente">
+                                     <span class="icon"><i class="fa fa-users"></i></span>Clientes
+                                </a>
+                            </li>
+                            <li data-role-access="admin,designer">
+                                <a href="#" onclick="mostrarSecao('cadastrarProduto', true)" data-section="cadastrarProduto">
+                                    <span class="icon"><i class="fa fa-box"></i></span>Produtos
+                                </a>
+                            </li>
+                            <li data-role-access="admin">
+                                <a href="#" onclick="mostrarSecao('cadastrarFuncionario', true)" data-section="cadastrarFuncionario">
+                                    <span class="icon"><i class="fa fa-user-tie"></i></span>Funcionários
+                                </a>
+                            </li>
+                            <li data-role-access="admin">
+                                <a href="#" onclick="mostrarSecao('cadastrarFornecedor', true)" data-section="cadastrarFornecedor">
+                                    <span class="icon"><i class="fa fa-truck"></i></span>Fornecedores
+                                </a>
+                            </li>
                         </ul>
                     </li>
-                    <li data-section-id="visualizarPedidos">
-                        <a href="#" data-section="visualizarPedidos" aria-label="Visualizar pedidos">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-list-alt"></i></span>Pedidos
-                        </a>
-                    </li>
-                    <li data-section-id="gerirPermissoes">
-                         <a href="#" data-section="gerirPermissoes" aria-label="Gerenciar permissões">
-                            <span class="icon" aria-hidden="true"><i class="fa fa-shield-alt"></i></span>Permissões
+                    <li data-role-access="all">
+                        <a href="#" onclick="mostrarSecao('visualizarPedidos', true)" data-section="visualizarPedidos">
+                            <span class="icon"><i class="fa fa-list-alt"></i></span>Pedidos
                         </a>
                     </li>
                 </ul>
-                <button class="toggle-menu" aria-label="Alternar menu"><i class="fas fa-bars" aria-hidden="true"></i></button>
-            </nav>
-        </header>
+                <a href="#" class="toggle-menu"><i class="fas fa-bars"></i></a>
+            </div>
+        </div>
 
-        <main id="mainContentArea" class="content-area w-full" role="main"></main>
+        <div class="main-layout"> <main id="mainContentArea" class="content-area w-full"> 
+                <section id="telaInicial" class="main-content-section max-w-7xl mx-auto"> 
+                    <h1 class="dashboard-header">Painel de Controlo</h1> 
+                    <div class="summary-cards">
+                        <div class="metric-card-dashboard card">
+                            <div class="card-header">
+                                <span class="icon-wrapper-dashboard icon"><i class="fas fa-calendar-day"></i></span>
+                                <h3 class="metric-label-dashboard card-title">Pedidos Hoje</h3>
+                            </div>
+                            <p id="metricPedidosHoje" class="metric-value-dashboard card-value">0</p>
+                        </div>
+                        <div class="metric-card-dashboard card">
+                             <div class="card-header">
+                                <span class="icon-wrapper-dashboard icon"><i class="fas fa-hourglass-half"></i></span>
+                                <h3 class="metric-label-dashboard card-title">Pendentes</h3>
+                            </div>
+                            <p id="metricPedidosPendentes" class="metric-value-dashboard card-value">0</p>
+                        </div>
+                        <div class="metric-card-dashboard card">
+                            <div class="card-header">
+                                <span class="icon-wrapper-dashboard icon"><i class="fas fa-dollar-sign"></i></span>
+                                <h3 class="metric-label-dashboard card-title">Faturamento Mês</h3>
+                            </div>
+                            <p id="metricFaturamentoMes" class="metric-value-dashboard card-value currency">R$0,00</p>
+                        </div>
+                        <div class="metric-card-dashboard card">
+                           <div class="card-header">
+                               <span class="icon-wrapper-dashboard icon"><i class="fas fa-users"></i></span>
+                                <h3 class="metric-label-dashboard card-title">Total Clientes</h3>
+                            </div>
+                            <p id="metricTotalClientes" class="metric-value-dashboard card-value">0</p>
+                        </div>
+                    </div>
 
-        <footer class="site-footer" role="contentinfo">
-            <p>Sistema de Gestão PRO para Gráficas.</p>
+                    <div class="material-table-card recent-orders">
+                        <div class="material-table-header recent-orders-header">
+                            <h2>Últimos Pedidos</h2>
+                            <button onclick="mostrarSecao('visualizarPedidos', true)" class="btn btn-primary btn-view-all text-xs py-2 px-3"><i class="fas fa-list-ul mr-2"></i>Ver Todos</button>
+                        </div>
+                        <div class="material-table-container orders-table-wrapper">
+                            <table class="material-data-table orders-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nº Pedido</th>
+                                        <th>Cliente</th>
+                                        <th>Data</th>
+                                        <th>Valor</th>
+                                        <th>Estado</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ultimosPedidosTableBody">
+                                    <tr><td colspan="6" class="text-center py-10">Nenhum pedido recente.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="novoPedido" class="main-content-section interactive-theme hidden max-w-3xl mx-auto">
+                    <h2 class="text-xl font-semibold mb-6 pb-4 border-b">Novo Pedido</h2>
+                    <form id="formNovoPedido" class="space-y-6">
+                        <input type="hidden" id="editingOrderIdField"> 
+                        <div>
+                            <label for="pedidoDataHora" class="label-text">Data e Hora do Pedido:</label>
+                            <input type="text" id="pedidoDataHora" class="input-field" readonly>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="relative">
+                                <label for="pedidoClienteSearch" class="label-text">Cliente:</label>
+                                <input type="text" id="pedidoClienteSearch" class="input-field" placeholder="Pesquisar cliente...">
+                                <input type="hidden" id="pedidoClienteId">
+                                <div id="pedidoClienteResultados" class="absolute z-20 w-full border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto hidden">
+                                </div>
+                                <button type="button" onclick="abrirModalNovoClienteRapido()" class="mt-2 btn btn-link text-xs">Registar novo cliente</button>
+                            </div>
+                            <div>
+                                <label for="pedidoVendedor" class="label-text">Funcionário (Vendedor):</label>
+                                <select id="pedidoVendedor" class="input-field">
+                                    <option value="">Selecione um funcionário</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-5 border-t">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">Itens do Pedido</h3>
+                            </div>
+                            <div id="itensPedidoContainer" class="space-y-4"></div>
+                            <button type="button" onclick="adicionarItemPedidoForm()" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-plus mr-1.5"></i>Adicionar Produto</button>
+                        </div>
+                        
+                        <div class="pt-5 border-t space-y-4">
+                            <div>
+                                <label for="pedidoDescricaoGeral" class="label-text">Descrição Geral do Pedido:</label>
+                                <textarea id="pedidoDescricaoGeral" rows="2" class="input-field text-lg font-semibold" placeholder="Ex: Kit Adesivos para Vitrine..."></textarea>
+                            </div>
+
+                            <div>
+                                <label class="label-text">Preview do Pedido (Opcional):</label>
+                                <div id="pedidoImageDropArea" class="image-drop-area" onclick="document.getElementById('pedidoImagemFile').click();">
+                                    <input type="file" accept="image/*" class="hidden" id="pedidoImagemFile" onchange="handleImagemFilePedido(event)">
+                                    <img src="#" alt="Preview do Pedido" id="pedidoImagemPreview" class="hidden preview-image">
+                                    <span id="pedidoImagemPreviewPlaceholder" class="text-sm">
+                                        <i class="fas fa-image fa-2x mb-1.5"></i><br>
+                                        Cole ou clique para carregar imagem
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="pt-5 border-t">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">Detalhes do Pagamento</h3>
+                            </div>
+                            <div id="pagamentosContainer" class="space-y-4">
+                            </div>
+                            <button type="button" onclick="adicionarPagamentoForm()" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-dollar-sign mr-1.5"></i>Adicionar Pagamento</button>
+                            
+                            <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                <div>
+                                    <label class="label-text">Valor Total do Pedido:</label>
+                                    <input type="text" id="pedidoValorTotal" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                                </div>
+                                <div>
+                                    <label class="label-text">Total Pago:</label>
+                                    <input type="text" id="pedidoTotalPago" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                                </div>
+                                 <div>
+                                    <label class="label-text">Valor Restante:</label>
+                                    <input type="text" id="pedidoValorRestante" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t">
+                            <div class="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <label for="pedidoDataEntrega" class="label-text">Data Entrega:</label>
+                                    <input type="date" id="pedidoDataEntrega" class="input-field">
+                                </div>
+                                <div>
+                                    <label for="pedidoHoraEntrega" class="label-text">Hora Entrega:</label>
+                                    <input type="time" id="pedidoHoraEntrega" class="input-field">
+                                </div>
+                            </div>
+                             <div>
+                                <label for="pedidoStatus" class="label-text">Estado do Pedido:</label>
+                                <select id="pedidoStatus" class="input-field">
+                                    <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                                    <option value="Em Produção (Arte)">Em Produção (Arte)</option>
+                                    <option value="Em Produção (Impressão)">Em Produção (Impressão)</option>
+                                    <option value="Em Produção (Acabamento)">Em Produção (Acabamento)</option>
+                                    <option value="Pronto para Retirada">Pronto para Retirada</option>
+                                    <option value="Em Rota de Entrega">Em Rota de Entrega</option>
+                                    <option value="Entregue">Entregue</option>
+                                    <option value="Cancelado">Cancelado</option>
+                                </select>
+                            </div>
+                        </div>
+                       
+                        <div class="flex justify-end space-x-3 pt-6 border-t">
+                            <button type="button" onclick="mostrarSecao('telaInicial', true); document.getElementById('editingOrderIdField').value = ''; document.querySelector('#formNovoPedido button[type=\'submit\']').innerHTML = '<i class=\'fas fa-check mr-1.5\'></i>Guardar Pedido';" class="btn btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-check mr-1.5"></i>Guardar Pedido</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section id="cadastrarCliente" class="main-content-section interactive-theme hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1">
+                            <h2 class="text-xl font-semibold mb-5">Registar Cliente</h2>
+                            <form id="formCadastrarCliente" class="space-y-4">
+                                <div>
+                                    <label for="clienteNome" class="label-text">Nome Completo / Razão Social:</label>
+                                    <input type="text" id="clienteNome" class="input-field" required>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="clienteTipo" class="label-text">Tipo de Cliente:</label>
+                                        <select id="clienteTipo" class="input-field">
+                                            <option value="final">Cliente Final</option>
+                                            <option value="revenda">Revenda</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="clienteTelefone" class="label-text">Telefone:</label>
+                                        <input type="tel" id="clienteTelefone" class="input-field">
+                                    </div>
+                                </div>
+                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="clienteEmail" class="label-text">Email:</label>
+                                        <input type="email" id="clienteEmail" class="input-field">
+                                    </div>
+                                    <div>
+                                        <label for="clienteCpfCnpj" class="label-text">CPF/CNPJ (Opcional):</label>
+                                        <input type="text" id="clienteCpfCnpj" class="input-field">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="clienteEndereco" class="label-text">Endereço (Opcional):</label>
+                                    <input type="text" id="clienteEndereco" class="input-field">
+                                </div>
+                                <div class="flex justify-end pt-3">
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus mr-1.5"></i>Guardar Cliente</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 mt-6 lg:mt-0">
+                            <h3 class="text-lg font-semibold mb-1">Clientes Registados</h3>
+                            <div class="search-input-wrapper relative">
+                                <i class="fas fa-search absolute top-1/2 left-3.5 transform -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="pesquisaClienteInput" class="input-field w-full pl-10" placeholder="Pesquisar cliente por nome, telefone...">
+                            </div>
+                            <div id="listaClientes" class="space-y-2.5 max-h-60 sm:max-h-72 lg:max-h-[calc(100vh-340px)] overflow-y-auto pr-1 mt-3">
+                                <p class="text-sm text-center py-3">Nenhum cliente registado.</p>
+                            </div>
+                            
+                            <div id="detalhesClienteSelecionado" class="mt-6 hidden">
+                                <h4 class="text-md font-semibold mb-2 border-t pt-4">Detalhes do Cliente</h4>
+                                <div id="infoCliente" class="p-3 border rounded-md mb-4 text-sm space-y-1">
+                                </div>
+                                <h4 class="text-md font-semibold mb-2">Pedidos do Cliente</h4>
+                                <div id="pedidosDoClienteLista" class="space-y-2.5 max-h-40 sm:max-h-48 overflow-y-auto pr-1 border rounded-md p-2">
+                                    <p class="text-xs text-center py-2">Selecione um cliente para ver os seus pedidos.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="cadastrarProduto" class="main-content-section interactive-theme hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1">
+                            <h2 class="text-xl font-semibold mb-5">Registar Produto</h2>
+                            <form id="formCadastrarProduto" class="space-y-4">
+                                <div>
+                                    <label for="produtoNome" class="label-text">Nome do Produto:</label>
+                                    <input type="text" id="produtoNome" class="input-field" required> </div>
+                                <div>
+                                    <label for="produtoTipoPreco" class="label-text">Tipo de Precificação:</label>
+                                    <select id="produtoTipoPreco" class="input-field" onchange="togglePrecoFields()">
+                                        <option value="unidade">Por Unidade/Pacote</option>
+                                        <option value="metro">Por Metro Quadrado (m²)</option>
+                                    </select>
+                                </div>
+                                <div id="precoUnidadeFields">
+                                    <label for="produtoPrecoUnidade" class="label-text">Preço Unitário (R$):</label>
+                                    <input type="number" step="0.01" id="produtoPrecoUnidade" class="input-field">
+                                </div>
+                                <div id="precoMetroFields" class="hidden">
+                                    <label for="produtoPrecoMetro" class="label-text">Preço por Metro Quadrado (R$/m²):</label>
+                                    <input type="number" step="0.01" id="produtoPrecoMetro" class="input-field">
+                                </div>
+                                <div>
+                                    <label for="produtoDescricao" class="label-text">Descrição (Opcional):</label>
+                                    <textarea id="produtoDescricao" rows="3" class="input-field"></textarea>
+                                    </div>
+                                <div class="flex justify-end pt-3">
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-box mr-1.5"></i>Guardar Produto</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 mt-6 lg:mt-0">
+                            <h3 class="text-md font-semibold mb-3">Produtos Registados</h3>
+                            <div id="listaProdutos" class="space-y-2.5 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+                                <p class="text-sm text-center py-3">Nenhum produto registado.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="cadastrarFuncionario" class="main-content-section interactive-theme hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1">
+                            <h2 class="text-xl font-semibold mb-5">Registar Funcionário</h2>
+                            <form id="formCadastrarFuncionario" class="space-y-4">
+                                <div>
+                                    <label for="funcionarioNome" class="label-text">Nome do Funcionário:</label>
+                                    <input type="text" id="funcionarioNome" class="input-field" required>
+                                </div>
+                                <div>
+                                    <label for="funcionarioContato" class="label-text">Contacto (Telefone/Email - Opcional):</label>
+                                    <input type="text" id="funcionarioContato" class="input-field">
+                                </div>
+                                <div>
+                                    <label for="funcionarioCargo" class="label-text">Cargo:</label>
+                                    <select id="funcionarioCargo" class="input-field">
+                                        <option value="admin">Administrador</option>
+                                        <option value="vendedor" selected>Vendedor</option>
+                                        <option value="producao">Produção</option>
+                                        <option value="impressor">Impressor</option>
+                                        <option value="designer">Designer</option>
+                                        <option value="freelancer">Freelancer</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="funcionarioCodigoAcesso" class="label-text">Código de Acesso:</label>
+                                    <input type="text" id="funcionarioCodigoAcesso" class="input-field" placeholder="Ex: 123456" required>
+                                </div>
+                                <div class="flex justify-end pt-3">
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus mr-1.5"></i>Guardar Funcionário</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 mt-6 lg:mt-0">
+                            <h3 class="text-md font-semibold mb-3">Funcionários Registados</h3>
+                            <div id="listaFuncionarios" class="space-y-2.5 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+                                <p class="text-sm text-center py-3">Nenhum funcionário registado.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="cadastrarFornecedor" class="main-content-section interactive-theme hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1">
+                            <h2 class="text-xl font-semibold mb-5">Registar Fornecedor</h2>
+                            <form id="formCadastrarFornecedor" class="space-y-4">
+                                <div>
+                                    <label for="fornecedorNome" class="label-text">Nome do Fornecedor:</label>
+                                    <input type="text" id="fornecedorNome" class="input-field" required>
+                                </div>
+                                <div>
+                                    <label for="fornecedorContato" class="label-text">Contacto (Telefone/Email):</label>
+                                    <input type="text" id="fornecedorContato" class="input-field">
+                                </div>
+                                <div>
+                                    <label for="fornecedorMaterial" class="label-text">Tipo de Material Fornecido:</label>
+                                    <input type="text" id="fornecedorMaterial" class="input-field">
+                                </div>
+                                <div class="flex justify-end pt-3">
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-truck-loading mr-1.5"></i>Guardar Fornecedor</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="lg:col-span-2 mt-6 lg:mt-0">
+                            <h3 class="text-md font-semibold mb-3">Fornecedores Registados</h3>
+                            <div id="listaFornecedores" class="space-y-2.5 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
+                                <p class="text-sm text-center py-3">Nenhum fornecedor registado.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="visualizarPedidos" class="main-content-section interactive-theme hidden">
+                     <h2 class="text-xl font-semibold mb-5 pb-3 border-b">Todos os Pedidos</h2>
+                    <div class="mb-6 p-4 border rounded-lg bg-[rgba(255,255,255,0.05)]">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 items-end">
+                            <div>
+                                <label for="filtroNomeCliente" class="label-text text-xs">Nome do Cliente:</label>
+                                <input type="text" id="filtroNomeCliente" class="input-field input-field-sm py-1.5" placeholder="Pesquisar nome...">
+                            </div>
+                            <div>
+                                <label for="filtroNumeroPedido" class="label-text text-xs">Nº do Pedido:</label>
+                                <input type="text" id="filtroNumeroPedido" class="input-field input-field-sm py-1.5" placeholder="Pesquisar número...">
+                            </div>
+                            <div>
+                                <label for="filtroDataPedido" class="label-text text-xs">Data do Pedido:</label>
+                                <input type="date" id="filtroDataPedido" class="input-field input-field-sm py-1.5">
+                            </div>
+                            <div>
+                                <label for="filtroMaterialProduto" class="label-text text-xs">Produto/Material (nos Itens):</label>
+                                <input type="text" id="filtroMaterialProduto" class="input-field input-field-sm py-1.5" placeholder="Pesquisar item...">
+                            </div>
+                            <div>
+                                <label for="filtroStatusPedido" class="label-text text-xs">Estado do Pedido:</label>
+                                <select id="filtroStatusPedido" class="input-field input-field-sm py-1.5">
+                                    <option value="">Todos os Estados</option>
+                                    <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                                    <option value="Em Produção (Arte)">Em Produção (Arte)</option>
+                                    <option value="Em Produção (Impressão)">Em Produção (Impressão)</option>
+                                    <option value="Em Produção (Acabamento)">Em Produção (Acabamento)</option>
+                                    <option value="Pronto para Retirada">Pronto para Retirada</option>
+                                    <option value="Em Rota de Entrega">Em Rota de Entrega</option>
+                                    <option value="Entregue">Entregue</option>
+                                    <option value="Cancelado">Cancelado</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="filtroVendedor" class="label-text text-xs">Funcionário (Vendedor):</label>
+                                <select id="filtroVendedor" class="input-field input-field-sm py-1.5">
+                                    <option value="">Todos os Funcionários</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="filtroClassificacaoPedido" class="label-text text-xs">Classificar por:</label>
+                                <select id="filtroClassificacaoPedido" class="input-field input-field-sm py-1.5">
+                                    <option value="dataPedido_desc">Data Pedido (Mais Recentes)</option>
+                                    <option value="dataPedido_asc">Data Pedido (Mais Antigos)</option>
+                                    <option value="dataEntrega_asc">Data Entrega (Mais Próximos)</option>
+                                    <option value="dataEntrega_desc">Data Entrega (Mais Distantes)</option>
+                                    <option value="clienteNome_asc">Nome Cliente (A-Z)</option>
+                                    <option value="clienteNome_desc">Nome Cliente (Z-A)</option>
+                                    <option value="numeroPedido_asc">Nº Pedido (Crescente)</option>
+                                    <option value="numeroPedido_desc">Nº Pedido (Decrescente)</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2 lg:col-span-1 lg:col-start-3">
+                                 <button id="limparFiltrosPedidos" class="btn btn-secondary w-full text-sm py-2"><i class="fas fa-times mr-2"></i>Limpar Filtros</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="listaTodosPedidosContainer" class="pedidos-table-container">
+                        <table class="pedidos-table">
+                            <thead>
+                                <tr>
+                                    <th>Nº Pedido</th>
+                                    <th>Cliente</th>
+                                    <th>Data Pedido</th>
+                                    <th>Data Entrega</th>
+                                    <th>Valor Total</th>
+                                    <th>Estado</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaTodosPedidos">
+                                <tr><td colspan="7" class="text-center py-10">Nenhum pedido encontrado.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <footer class="site-footer">
+            <p>Sistema de Gestão PRO para Gráficas: Crie pedidos, controle clientes, produtos e o fluxo de produção de forma eficiente.</p>
             <p><strong>Criado por: Jeffweb3</strong></p>
         </footer>
     </div>
-    
-    <script type="module" src="./js/main.js?v=1.4"></script>
 
-    <!-- Modal de Novo Cliente Rápido -->
-    <div id="modalNovoClienteRapidoOverlay" class="modal-overlay hidden" role="dialog" aria-labelledby="modalNovoClienteRapidoTitle">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalNovoClienteRapidoTitle" class="modal-title">Registar Novo Cliente</h3>
-                <button type="button" class="modal-close" onclick="window.fecharModalNovoClienteRapido()" aria-label="Fechar">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-            <form id="formNovoClienteRapido" class="modal-body space-y-4">
-                <div>
-                    <label for="clienteRapidoNome" class="label-text">Nome Completo / Razão Social:</label>
-                    <input type="text" id="clienteRapidoNome" class="input-field" required>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <!-- ===== MODAIS ===== -->
+
+    <!-- Modal Novo Cliente Rápido -->
+    <div id="modalNovoClienteRapidoOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-md">
+            <div class="h-2"></div> 
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalNovoClienteRapido()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Registo Rápido de Cliente</h3>
+                <form id="formNovoClienteRapido" class="space-y-4">
                     <div>
-                        <label for="clienteRapidoTipo" class="label-text">Tipo de Cliente:</label>
-                        <select id="clienteRapidoTipo" class="input-field">
-                            <option value="final">Cliente Final</option>
-                            <option value="revenda">Revenda</option>
-                        </select>
+                        <label for="clienteRapidoNome" class="label-text">Nome:</label>
+                        <input type="text" id="clienteRapidoNome" class="input-field" required>
                     </div>
                     <div>
                         <label for="clienteRapidoTelefone" class="label-text">Telefone:</label>
                         <input type="tel" id="clienteRapidoTelefone" class="input-field">
                     </div>
-                </div>
-                <div class="flex justify-end pt-3">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-user-plus mr-1.5"></i>Guardar Cliente
-                    </button>
-                </div>
-            </form>
+                    <div>
+                        <label for="clienteRapidoTipo" class="label-text">Tipo de Cliente:</label>
+                        <select id="clienteRapidoTipo" class="input-field">
+                            <option value="final" selected>Cliente Final</option>
+                            <option value="revenda">Revenda</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-2.5 pt-4">
+                        <button type="button" onclick="fecharModalNovoClienteRapido()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
+    
+    <!-- Modal Editar Cliente -->
+    <div id="modalEditarClienteOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-lg">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalEditarCliente()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Editar Cliente</h3>
+                <form id="formEditarCliente" class="space-y-4">
+                    <input type="hidden" id="clienteIdParaEditar">
+                    <div>
+                        <label for="clienteNomeEditar" class="label-text">Nome / Razão Social:</label>
+                        <input type="text" id="clienteNomeEditar" class="input-field" required>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="clienteTipoEditar" class="label-text">Tipo de Cliente:</label>
+                            <select id="clienteTipoEditar" class="input-field">
+                                <option value="final">Cliente Final</option>
+                                <option value="revenda">Revenda</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="clienteTelefoneEditar" class="label-text">Telefone:</label>
+                            <input type="tel" id="clienteTelefoneEditar" class="input-field">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="clienteEmailEditar" class="label-text">Email:</label>
+                            <input type="email" id="clienteEmailEditar" class="input-field">
+                        </div>
+                        <div>
+                            <label for="clienteCpfCnpjEditar" class="label-text">CPF/CNPJ:</label>
+                            <input type="text" id="clienteCpfCnpjEditar" class="input-field">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="clienteEnderecoEditar" class="label-text">Endereço:</label>
+                        <input type="text" id="clienteEnderecoEditar" class="input-field">
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="fecharModalEditarCliente()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Produto -->
+    <div id="modalEditarProdutoOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-md">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalEditarProduto()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Editar Produto</h3>
+                <form id="formEditarProduto" class="space-y-4">
+                    <input type="hidden" id="produtoIdParaEditar">
+                    <div>
+                        <label for="produtoNomeEditar" class="label-text">Nome do Produto:</label>
+                        <input type="text" id="produtoNomeEditar" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="produtoTipoPrecoEditar" class="label-text">Tipo de Precificação:</label>
+                        <select id="produtoTipoPrecoEditar" class="input-field" onchange="togglePrecoFieldsEditar()">
+                            <option value="unidade">Por Unidade/Pacote</option>
+                            <option value="metro">Por Metro Quadrado (m²)</option>
+                        </select>
+                    </div>
+                    <div id="precoUnidadeFieldsEditar">
+                        <label for="produtoPrecoUnidadeEditar" class="label-text">Preço Unitário (R$):</label>
+                        <input type="number" step="0.01" id="produtoPrecoUnidadeEditar" class="input-field">
+                    </div>
+                    <div id="precoMetroFieldsEditar" class="hidden">
+                        <label for="produtoPrecoMetroEditar" class="label-text">Preço por Metro Quadrado (R$/m²):</label>
+                        <input type="number" step="0.01" id="produtoPrecoMetroEditar" class="input-field">
+                    </div>
+                    <div>
+                        <label for="produtoDescricaoEditar" class="label-text">Descrição:</label>
+                        <textarea id="produtoDescricaoEditar" rows="3" class="input-field"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="fecharModalEditarProduto()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Funcionário -->
+    <div id="modalEditarFuncionarioOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-md">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalEditarFuncionario()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Editar Funcionário</h3>
+                <form id="formEditarFuncionario" class="space-y-4">
+                    <input type="hidden" id="funcionarioIdParaEditar">
+                    <div>
+                        <label for="funcionarioNomeEditar" class="label-text">Nome:</label>
+                        <input type="text" id="funcionarioNomeEditar" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="funcionarioContatoEditar" class="label-text">Contacto:</label>
+                        <input type="text" id="funcionarioContatoEditar" class="input-field">
+                    </div>
+                    <div>
+                        <label for="funcionarioCargoEditar" class="label-text">Cargo:</label>
+                        <select id="funcionarioCargoEditar" class="input-field">
+                            <option value="admin">Administrador</option>
+                            <option value="vendedor">Vendedor</option>
+                            <option value="producao">Produção</option>
+                            <option value="impressor">Impressor</option>
+                            <option value="designer">Designer</option>
+                            <option value="freelancer">Freelancer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="funcionarioCodigoAcessoEditar" class="label-text">Código de Acesso:</label>
+                        <input type="text" id="funcionarioCodigoAcessoEditar" class="input-field" required>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" onclick="fecharModalEditarFuncionario()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Fornecedor -->
+    <div id="modalEditarFornecedorOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-md">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalEditarFornecedor()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Editar Fornecedor</h3>
+                <form id="formEditarFornecedor" class="space-y-4">
+                    <input type="hidden" id="fornecedorIdParaEditar">
+                    <div>
+                        <label for="fornecedorNomeEditar" class="label-text">Nome:</label>
+                        <input type="text" id="fornecedorNomeEditar" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="fornecedorContatoEditar" class="label-text">Contacto:</label>
+                        <input type="text" id="fornecedorContatoEditar" class="input-field">
+                    </div>
+                    <div>
+                        <label for="fornecedorMaterialEditar" class="label-text">Material Fornecido:</label>
+                        <input type="text" id="fornecedorMaterialEditar" class="input-field">
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" onclick="fecharModalEditarFornecedor()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mudar Status do Pedido -->
+    <div id="modalMudarStatusOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-sm">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalMudarStatus()">&times;</button>
+                <h3 class="text-lg font-semibold mb-2">Alterar Estado do Pedido</h3>
+                <p id="infoPedidoParaMudarStatus" class="text-sm mb-4"></p>
+                <form id="formMudarStatus">
+                    <input type="hidden" id="pedidoIdParaMudarStatus">
+                    <div>
+                        <label for="novoStatusPedido" class="label-text">Novo Estado:</label>
+                        <select id="novoStatusPedido" class="input-field">
+                            <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                            <option value="Em Produção (Arte)">Em Produção (Arte)</option>
+                            <option value="Em Produção (Impressão)">Em Produção (Impressão)</option>
+                            <option value="Em Produção (Acabamento)">Em Produção (Acabamento)</option>
+                            <option value="Pronto para Retirada">Pronto para Retirada</option>
+                            <option value="Em Rota de Entrega">Em Rota de Entrega</option>
+                            <option value="Entregue">Entregue</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" onclick="fecharModalMudarStatus()" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Alteração</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="scripts.js" type="module"></script>
+    <script>
+        // Função para calcular a configuração do tema
+        function calculateSettingAsThemeString({ localStorageTheme, systemSettingDark }) {
+            if (localStorageTheme !== null) {
+                return localStorageTheme;
+            }
+            if (systemSettingDark.matches) {
+                return "dark";
+            }
+            return "light";
+        }
+
+        // Função para atualizar o ícone do botão
+        function updateButtonIcon(theme) {
+            const icon = document.querySelector('#themeToggle i');
+            if (theme === 'dark') {
+                icon.className = 'fas fa-moon';
+            } else {
+                icon.className = 'fas fa-sun';
+            }
+        }
+
+        // Inicialização do tema
+        const localStorageTheme = localStorage.getItem("theme");
+        const systemSettingDark = window.matchMedia("(prefers-color-scheme: dark)");
+        let currentThemeSetting = calculateSettingAsThemeString({ localStorageTheme, systemSettingDark });
+
+        // Aplicar tema inicial
+        document.documentElement.setAttribute('data-theme', currentThemeSetting);
+        updateButtonIcon(currentThemeSetting);
+
+        // Configurar o botão de alternância
+        const button = document.querySelector("#themeToggle");
+        button.addEventListener("click", () => {
+            const newTheme = currentThemeSetting === "dark" ? "light" : "dark";
+            
+            // Atualizar o tema
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem("theme", newTheme);
+            currentThemeSetting = newTheme;
+            
+            // Atualizar o ícone
+            updateButtonIcon(newTheme);
+        });
+    </script>
 </body>
 </html>
