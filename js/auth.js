@@ -5,8 +5,10 @@
  * Este ficheiro gere o login, logout e o estado da sessão do utilizador.
  */
 
-// **CORREÇÃO: Importar a variável shopInstanceAppId**
 import { auth, db, onAuthStateChanged, signInAnonymously, getDocs, collection, query, where, shopInstanceAppId } from './firebase-config.js';
+
+// **NOVO: Registo de diagnóstico para verificar o ID da instância no arranque**
+console.log(`[Auth] Módulo de autenticação carregado. shopInstanceAppId: ${shopInstanceAppId}`);
 
 /**
  * Realiza o login do funcionário com base no código de acesso.
@@ -24,21 +26,25 @@ export async function handleLogin(codigo, onSuccess) {
     }
 
     try {
-        // **CORREÇÃO: Usar a variável shopInstanceAppId para criar o caminho dinâmico**
-        const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
+        const collectionPath = `artifacts/${shopInstanceAppId}/funcionarios`;
+        
+        // **NOVO: Registos de diagnóstico**
+        console.log(`[Auth] Tentando login com código: "${codigo}"`);
+        console.log(`[Auth] Consultando a coleção no caminho: "${collectionPath}"`);
+
+        const funcionariosRef = collection(db, collectionPath);
         const q = query(funcionariosRef, where("codigoAcesso", "==", codigo));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
+            console.log("[Auth] Funcionário encontrado!");
             const funcionarioDoc = querySnapshot.docs[0];
             const funcionarioData = funcionarioDoc.data();
             
-            // Armazena os dados do utilizador no localStorage
             localStorage.setItem('loggedInUserRole', funcionarioData.cargo.toLowerCase());
             localStorage.setItem('loggedInUserName', funcionarioData.nome);
             localStorage.setItem('loggedInUserId', funcionarioDoc.id);
 
-            // Executa o callback de sucesso, passando os dados do utilizador
             onSuccess({
                 role: funcionarioData.cargo.toLowerCase(),
                 name: funcionarioData.nome,
@@ -46,12 +52,14 @@ export async function handleLogin(codigo, onSuccess) {
             });
 
         } else {
+            // **NOVO: Registo de diagnóstico para falha**
+            console.log("[Auth] Nenhum funcionário encontrado com esse código de acesso no caminho especificado.");
             loginErrorMessage.textContent = "Código inválido.";
             loginErrorMessage.classList.remove('hidden');
         }
     } catch (error) {
-        console.error("Erro no login:", error);
-        loginErrorMessage.textContent = "Erro ao tentar fazer login. Tente novamente.";
+        console.error("[Auth] Erro durante a tentativa de login:", error);
+        loginErrorMessage.textContent = "Ocorreu um erro ao tentar fazer login. Verifique a consola para mais detalhes.";
         loginErrorMessage.classList.remove('hidden');
     }
 }
@@ -63,46 +71,32 @@ export function logout() {
     localStorage.removeItem('loggedInUserRole');
     localStorage.removeItem('loggedInUserName');
     localStorage.removeItem('loggedInUserId');
-
-    // Recarrega a página para redefinir o estado da aplicação
     window.location.reload();
 }
 
 /**
- * Inicializa o listener de autenticação para verificar se o utilizador já está logado
- * ou se precisa de fazer login anónimo.
- * @param {object} callbacks - Objeto com funções de callback.
- * @param {function} callbacks.onUserLoggedIn - Chamado quando um utilizador está logado (da sessão anterior).
- * @param {function} callbacks.onUserLoggedOut - Chamado quando não há utilizador logado.
- * @param {function} callbacks.onAuthReady - Chamado após a primeira verificação de autenticação estar completa.
+ * Inicializa o listener de autenticação.
  */
 export function initAuth(callbacks) {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // Um utilizador (anónimo ou persistido) está presente.
-            // Verifica se há uma sessão guardada no localStorage.
             const storedRole = localStorage.getItem('loggedInUserRole');
             const storedName = localStorage.getItem('loggedInUserName');
             const storedId = localStorage.getItem('loggedInUserId');
 
             if (storedRole && storedName && storedId) {
-                // Se houver, informa a aplicação para continuar com o utilizador logado.
                 callbacks.onUserLoggedIn({
                     role: storedRole,
                     name: storedName,
                     id: storedId
                 });
             } else {
-                // Se não houver, mostra a tela de login.
                 callbacks.onUserLoggedOut();
             }
-            // Informa que a verificação de autenticação inicial está pronta.
             callbacks.onAuthReady(user.uid);
         } else {
-            // Nenhum utilizador base (nem anónimo). Tenta fazer login anónimo.
             try {
                 await signInAnonymously(auth);
-                // O listener onAuthStateChanged será acionado novamente após o login anónimo.
             } catch (error) {
                 console.error("Erro no login anônimo:", error);
                 document.body.innerHTML = "Erro crítico de autenticação. Por favor, recarregue a página.";
