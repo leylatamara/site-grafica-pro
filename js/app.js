@@ -108,9 +108,9 @@ function checkAuth() {
     // Atualizar interface baseado na autenticação
     updateAuthUI(isAuthenticated);
     
-    // Redirecionar se não estiver autenticado
-    if (!isAuthenticated && !window.location.pathname.includes('login')) {
-        window.location.href = '/login';
+    // Não redirecionar para /login, apenas atualizar a UI
+    if (!isAuthenticated) {
+        updateAuthUI(false);
     }
 }
 
