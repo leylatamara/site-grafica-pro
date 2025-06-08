@@ -29,70 +29,57 @@ let permissoesDoCargo = [];
 
 injectAllTemplates();
 
-/**
- * Inicia a sessão de um utilizador, configurando a UI e carregando os dados.
- * @param {object} userData - Os dados do utilizador logado.
- */
-async function startUserSession(userData) {
-    loggedInUserRole = userData.role;
-    loggedInUserName = userData.name;
-    loggedInUserIdGlobal = userData.id;
-
-    // Carrega as permissões para o cargo do utilizador
-    await initPermissoes();
-    permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
-
-    const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-    if (loggedInUserNameDisplay) {
-        loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
-    }
-
-    // Configura a visibilidade da aplicação
-    document.body.classList.add('app-visible');
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('appContainer').classList.remove('hidden');
-
-    configurarAcessoPorCargo();
-    
-    // Define a página inicial com base nas permissões
-    const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
-    if (paginaInicial) {
-        mostrarSecao(paginaInicial, true);
-    } else {
-        document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
-    }
-
-    // Inicializa todos os outros módulos que dependem de um utilizador logado
-    const commonDeps = {
-        getRole: () => loggedInUserRole,
-        getUserName: () => loggedInUserName,
-        getUserId: () => loggedInUserIdGlobal,
-        mostrarSecao,
-        setActiveMenuLink,
-        atualizarDashboard
-    };
-    
-    await Promise.all([
-        initFuncionarios(commonDeps),
-        initFornecedores(commonDeps),
-        initProdutos(commonDeps),
-    ]);
-    
-    initClientes({ ...commonDeps, getPedidosCache: getPedidos });
-    initPedidos({ ...commonDeps, getClientes, getProdutos });
-}
-
 initAuth({
-    onUserLoggedIn: startUserSession, // Reutiliza a função de início de sessão
+    onUserLoggedIn: async (userData) => {
+        loggedInUserRole = userData.role;
+        loggedInUserName = userData.name;
+        loggedInUserIdGlobal = userData.id;
+
+        await initPermissoes();
+        permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
+
+        const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
+        if (loggedInUserNameDisplay) {
+            loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
+        }
+
+        document.body.classList.add('app-visible');
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appContainer').classList.remove('hidden');
+
+        configurarAcessoPorCargo();
+        
+        const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
+        if (paginaInicial) {
+            mostrarSecao(paginaInicial, true);
+        } else {
+            document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
+        }
+    },
     onUserLoggedOut: () => {
         document.body.classList.remove('app-visible');
         document.getElementById('loginScreen').classList.remove('hidden');
         document.getElementById('appContainer').classList.add('hidden');
         document.body.style.paddingTop = '0px';
     },
-    onAuthReady: () => {
-        // A lógica principal agora acontece em onUserLoggedIn
-        console.log("Autenticação pronta.");
+    onAuthReady: async () => {
+        const commonDeps = {
+            getRole: () => loggedInUserRole,
+            getUserName: () => loggedInUserName,
+            getUserId: () => loggedInUserIdGlobal,
+            mostrarSecao,
+            setActiveMenuLink,
+            atualizarDashboard
+        };
+        
+        await Promise.all([
+            initFuncionarios(commonDeps),
+            initFornecedores(commonDeps),
+            initProdutos(commonDeps),
+        ]);
+        
+        initClientes({ ...commonDeps, getPedidosCache: getPedidos });
+        initPedidos({ ...commonDeps, getClientes, getProdutos });
     }
 });
 
@@ -112,6 +99,8 @@ function mostrarSecao(idSecao, isMenuLink = false) {
     });
 
     const targetSection = document.getElementById(idSecao);
+    
+    // **INÍCIO DA CORREÇÃO**
     if (targetSection) {
         targetSection.classList.remove('hidden');
         targetSection.classList.toggle('interactive-theme-dashboard', idSecao === 'telaInicial');
@@ -126,10 +115,18 @@ function mostrarSecao(idSecao, isMenuLink = false) {
             }
         }
     } else { 
-        const paginaInicial = permissoesDoCargo[0] || 'telaInicial';
-        mostrarSecao(paginaInicial, true);
+        // Lógica de fallback à prova de falhas para prevenir loops infinitos
+        console.error(`A secção com o ID "${idSecao}" não foi encontrada no DOM.`);
+        const homeSection = document.getElementById('telaInicial');
+        if (homeSection && idSecao !== 'telaInicial') {
+            console.warn("A redirecionar para a página inicial.");
+            mostrarSecao('telaInicial', true); // Tenta ir para a home apenas uma vez.
+        } else {
+             document.getElementById('mainContentArea').innerHTML = `<h2>Erro Crítico: A página "${idSecao}" não pode ser encontrada.</h2>`;
+        }
         return;
     }
+    // **FIM DA CORREÇÃO**
 
     if (idSecao === 'telaInicial') atualizarDashboard();
     
@@ -150,8 +147,8 @@ function configurarAcessoPorCargo() {
 }
 
 function atualizarDashboard() {
-    const clientesCache = getClientes();
-    const pedidosCache = getPedidos();
+    const clientesCache = getClientes() || [];
+    const pedidosCache = getPedidos() || [];
     
     const m = {
         h: document.getElementById('metricPedidosHoje'),
@@ -190,7 +187,6 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     const userData = await handleLogin(codigo);
     
     if (userData) {
-        // Se o login for bem-sucedido, inicia a sessão diretamente
         await startUserSession(userData);
     }
 });
