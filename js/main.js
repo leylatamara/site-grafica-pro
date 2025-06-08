@@ -8,6 +8,7 @@
 // MÓDULOS ESSENCIAIS
 import { initAuth, handleLogin, logout } from './auth.js';
 import { ajustarPaddingBody, setActiveMenuLink } from './ui.js';
+import { injectAllTemplates } from './templates.js';
 
 // MÓDULOS DE FUNCIONALIDADE
 import { init as initClientes, getClientes } from './clientes.js';
@@ -25,6 +26,9 @@ let activeSectionId = 'telaInicial';
 let permissoesDoCargo = [];
 
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+
+// Injeta o HTML de todas as secções no DOM assim que o script é carregado.
+injectAllTemplates();
 
 initAuth({
     onUserLoggedIn: async (userData) => {
@@ -91,10 +95,8 @@ initAuth({
 function mostrarSecao(idSecao, isMenuLink = false) { 
     if (!loggedInUserRole) { logout(); return; }
 
-    // Verifica se o cargo atual tem permissão para ver a secção
     if (!permissoesDoCargo.includes(idSecao)) {
         console.warn(`Acesso negado à página '${idSecao}' para o cargo '${loggedInUserRole}'.`);
-        // Opcional: mostrar uma mensagem de acesso negado
         return;
     }
     
@@ -195,3 +197,4 @@ document.querySelectorAll('.exo-menu a[data-section]').forEach(link => {
 // Apenas as funções que são chamadas diretamente pelo HTML (onclick)
 // precisam de estar no escopo global. Os módulos já tratam disto internamente.
 window.mostrarSecao = mostrarSecao;
+
