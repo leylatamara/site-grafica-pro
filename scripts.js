@@ -836,3 +836,15 @@ window.togglePrecoFields = function() {
     document.getElementById('precoUnidadeFields').classList.toggle('hidden', t === 'metro');
     document.getElementById('precoMetroFields').classList.toggle('hidden', t === 'unidade');
 };
+
+async function carregarClientes() {
+    try {
+        const clientesRef = collection(db, `artifacts/${shopInstanceAppId}/clientes`);
+        const snapshot = await getDocs(clientesRef);
+        window.clientesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Se quiser popular algum select ou lista, faça aqui
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+        window.clientesCache = [];
+    }
+}
