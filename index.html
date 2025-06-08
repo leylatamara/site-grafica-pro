@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Barra de Notificações -->
+    <!-- Barra de Notificações (será preenchida pelo JS) -->
     <div id="notificationBar" class="notification-bar">
         <div class="notification-content">
             <span id="notificationIcon" class="text-xl"></span>
@@ -24,88 +24,13 @@
         <div id="notificationActions"></div>
     </div>
 
-    <!-- Tela de Login -->
-    <div id="loginScreen">
-        <div class="login-card">
-            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO">
-            <h2 class="login-title">Acesso ao Sistema</h2>
-            <p class="login-subtitle">Insira o seu código de funcionário para continuar.</p>
-            <form id="loginForm">
-                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required>
-                <button type="submit" class="login-button">Entrar</button>
-            </form>
-            <p id="loginErrorMessage" class="hidden"></p>
-        </div>
-    </div>
+    <!-- Tela de Login (será preenchida pelo JS) -->
+    <div id="loginScreen"></div>
 
-    <!-- Container Principal da Aplicação -->
-    <div id="appContainer" class="hidden">
-        <!-- Cabeçalho e Menu -->
-        <header class="exo-menu-container">
-            <div class="header-top-row">
-                <div class="logo-area">
-                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8">
-                </div>
-                <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
-                <div class="actions-area"> 
-                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button>
-                </div>
-            </div>
-            <div class="user-info-bar">
-                <span id="loggedInUserNameDisplay" class="font-semibold"></span>
-                <div class="user-stats">
-                    <span>Pedidos Mês: <strong id="userPedidosMes">0</strong></span>
-                    <span>Em Finalização: <strong id="userPedidosFinalizacao">0</strong></span>
-                    <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
-                </div>
-            </div>
-            <nav class="menu-bar-wrapper"> 
-                <ul class="exo-menu clearfix">
-                    <li data-role-access="all"><a href="#" data-section="telaInicial"><span class="icon"><i class="fa fa-home"></i></span>Home</a></li>
-                    <li data-role-access="admin,vendedor"><a href="#" data-section="novoPedido"><span class="icon"><i class="fa fa-plus"></i></span>Novo Pedido</a></li>
-                    <li class="drop-down" data-role-access="admin,vendedor,designer,impressor,producao" id="dropdownCadastrosMenu">
-                        <a href="#"><span class="icon"><i class="fa fa-archive"></i></span>Cadastros<span class="arrow">&#9662;</span></a>
-                        <ul class="drop-down-ul">
-                            <li data-role-access="admin,vendedor"><a href="#" data-section="cadastrarCliente"><span class="icon"><i class="fa fa-users"></i></span>Clientes</a></li>
-                            <li data-role-access="admin,designer"><a href="#" data-section="cadastrarProduto"><span class="icon"><i class="fa fa-box"></i></span>Produtos</a></li>
-                            <li data-role-access="admin"><a href="#" data-section="cadastrarFuncionario"><span class="icon"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
-                            <li data-role-access="admin"><a href="#" data-section="cadastrarFornecedor"><span class="icon"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
-                        </ul>
-                    </li>
-                    <li data-role-access="all"><a href="#" data-section="visualizarPedidos"><span class="icon"><i class="fa fa-list-alt"></i></span>Pedidos</a></li>
-                </ul>
-                <a href="#" class="toggle-menu"><i class="fas fa-bars"></i></a>
-            </nav>
-        </header>
+    <!-- Container Principal da Aplicação (será preenchido pelo JS) -->
+    <div id="appContainer" class="hidden"></div>
 
-        <!-- Conteúdo Principal -->
-        <div class="main-layout">
-            <main id="mainContentArea" class="content-area w-full">
-                <!-- Seção Home (Dashboard) -->
-                <section id="telaInicial" class="main-content-section max-w-7xl mx-auto"></section>
-                <!-- Seção Novo Pedido -->
-                <section id="novoPedido" class="main-content-section interactive-theme hidden max-w-3xl mx-auto"></section>
-                <!-- Seção Cadastrar Cliente -->
-                <section id="cadastrarCliente" class="main-content-section interactive-theme hidden"></section>
-                <!-- Seção Cadastrar Produto -->
-                <section id="cadastrarProduto" class="main-content-section interactive-theme hidden"></section>
-                <!-- Seção Cadastrar Funcionário -->
-                <section id="cadastrarFuncionario" class="main-content-section interactive-theme hidden"></section>
-                <!-- Seção Cadastrar Fornecedor -->
-                <section id="cadastrarFornecedor" class="main-content-section interactive-theme hidden"></section>
-                <!-- Seção Visualizar Pedidos -->
-                <section id="visualizarPedidos" class="main-content-section interactive-theme hidden"></section>
-            </main>
-        </div>
-
-        <!-- Rodapé -->
-        <footer class="site-footer">
-            <p>Sistema de Gestão PRO para Gráficas.</p>
-            <p><strong>Criado por: Jeffweb3</strong></p>
-        </footer>
-    </div>
-
-    <!-- Modais -->
+    <!-- Container para todos os Modais (serão injetados pelo JS) -->
     <div id="modalContainer"></div>
 
     <!-- Conexão com o arquivo de lógica JavaScript -->
