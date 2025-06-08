@@ -1345,9 +1345,19 @@
                     }
                     // Abrir o modal
                     modal.classList.remove('hidden');
-                    // Carregar as permissões após o modal estar visível
+                    // Chamar carregarPermissoesSetor ao abrir o modal
                     setTimeout(() => {
-                        // Função de permissões será chamada pelo scripts.js
+                        if (typeof carregarPermissoesSetor === 'function') {
+                            carregarPermissoesSetor();
+                        } else if (window.carregarPermissoesSetor) {
+                            window.carregarPermissoesSetor();
+                        }
+                        // Adicionar event listener para o select de setor
+                        const selectSetor = document.getElementById('selectSetorPermissao');
+                        if (selectSetor) {
+                            selectSetor.removeEventListener('change', carregarPermissoesSetor);
+                            selectSetor.addEventListener('change', carregarPermissoesSetor);
+                        }
                     }, 100);
                     return;
                 }
