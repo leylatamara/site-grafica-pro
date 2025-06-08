@@ -8,30 +8,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/leylatamara/site-grafica-pro/styles.css?v=1.2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/leylatamara/site-grafica-pro/styles.css?v=1.4">
 
-    <!-- NOVO: Import Map para gerir os módulos JavaScript -->
+    <!-- Import Map para gerir os módulos JavaScript -->
     <script type="importmap">
       {
         "imports": {
-          "firebase-config": "./js/firebase-config.js?v=1.3",
-          "auth": "./js/auth.js?v=1.3",
-          "ui": "./js/ui.js?v=1.3",
-          "templates": "./js/templates.js?v=1.3",
-          "clientes": "./js/clientes.js?v=1.3",
-          "produtos": "./js/produtos.js?v=1.3",
-          "funcionarios": "./js/funcionarios.js?v=1.3",
-          "fornecedores": "./js/fornecedores.js?v=1.3",
-          "pedidos": "./js/pedidos.js?v=1.3",
-          "permissoes": "./js/permissoes.js?v=1.3"
+          "firebase-config": "./js/firebase-config.js?v=1.4",
+          "auth": "./js/auth.js?v=1.4",
+          "ui": "./js/ui.js?v=1.4",
+          "templates": "./js/templates.js?v=1.4",
+          "clientes": "./js/clientes.js?v=1.4",
+          "produtos": "./js/produtos.js?v=1.4",
+          "funcionarios": "./js/funcionarios.js?v=1.4",
+          "fornecedores": "./js/fornecedores.js?v=1.4",
+          "pedidos": "./js/pedidos.js?v=1.4",
+          "permissoes": "./js/permissoes.js?v=1.4"
         }
       }
     </script>
 </head>
 <body>
     <!-- O resto do seu body HTML permanece exatamente igual -->
-
-    <!-- Barra de Notificações -->
     <div id="notificationBar" class="notification-bar">
         <div class="notification-content">
             <span id="notificationIcon" class="text-xl"></span>
@@ -39,8 +37,6 @@
         </div>
         <div id="notificationActions"></div>
     </div>
-
-    <!-- Container da Tela de Login -->
     <div id="loginScreen">
         <div class="login-card">
             <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO">
@@ -53,27 +49,73 @@
             <p id="loginErrorMessage" class="hidden"></p>
         </div>
     </div>
-
-    <!-- Container Principal da Aplicação -->
     <div id="appContainer" class="hidden">
-        <!-- ... O seu cabeçalho e menu permanecem aqui ... -->
         <div class="exo-menu-container">
-            <!-- ... -->
+            <div class="header-top-row flex justify-between items-center">
+                <div class="logo-area flex-shrink-0">
+                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8">
+                </div>
+                <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
+                <div class="actions-area flex-shrink-0"> 
+                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button>
+                </div>
+            </div>
+            <div class="user-info-bar">
+                <span id="loggedInUserNameDisplay" class="font-semibold"></span>
+                <div class="user-stats">
+                    <span>Pedidos Mês: <strong id="userPedidosMes">0</strong></span>
+                    <span>Em Finalização: <strong id="userPedidosFinalizacao">0</strong></span>
+                    <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
+                </div>
+            </div>
+            <div class="menu-bar-wrapper"> 
+                <ul class="exo-menu clearfix">
+                    <li data-section-id="telaInicial">
+                        <a href="#" data-section="telaInicial">
+                            <span class="icon"><i class="fa fa-home"></i></span>Home
+                        </a>
+                    </li>
+                    <li data-section-id="novoPedido">
+                        <a href="#" data-section="novoPedido">
+                            <span class="icon"><i class="fa fa-plus"></i></span>Novo Pedido
+                        </a>
+                    </li>
+                    <li class="drop-down" id="dropdownCadastrosMenu">
+                        <a href="#">
+                            <span class="icon"><i class="fa fa-archive"></i></span>
+                            Cadastros
+                            <span class="arrow">&#9662;</span>
+                        </a>
+                        <ul class="drop-down-ul">
+                            <li data-section-id="cadastrarCliente"><a href="#" data-section="cadastrarCliente"><span class="icon"><i class="fa fa-users"></i></span>Clientes</a></li>
+                            <li data-section-id="cadastrarProduto"><a href="#" data-section="cadastrarProduto"><span class="icon"><i class="fa fa-box"></i></span>Produtos</a></li>
+                            <li data-section-id="cadastrarFuncionario"><a href="#" data-section="cadastrarFuncionario"><span class="icon"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
+                            <li data-section-id="cadastrarFornecedor"><a href="#" data-section="cadastrarFornecedor"><span class="icon"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
+                        </ul>
+                    </li>
+                    <li data-section-id="visualizarPedidos">
+                        <a href="#" data-section="visualizarPedidos">
+                            <span class="icon"><i class="fa fa-list-alt"></i></span>Pedidos
+                        </a>
+                    </li>
+                    <li data-section-id="gerirPermissoes">
+                         <a href="#" data-section="gerirPermissoes">
+                            <span class="icon"><i class="fa fa-shield-alt"></i></span>Permissões
+                        </a>
+                    </li>
+                </ul>
+                <a href="#" class="toggle-menu"><i class="fas fa-bars"></i></a>
+            </div>
         </div>
-
         <div class="main-layout"> 
-            <main id="mainContentArea" class="content-area w-full"> 
-                <!-- ... As suas secções permanecem aqui ... -->
-            </main>
+            <main id="mainContentArea" class="content-area w-full"></main>
         </div>
         <footer class="site-footer">
-            <!-- ... O seu rodapé permanece aqui ... -->
+            <p>Sistema de Gestão PRO para Gráficas.</p>
+            <p><strong>Criado por: Jeffweb3</strong></p>
         </footer>
     </div>
-
-    <!-- Modais permanecem aqui -->
     
-    <!-- Script principal que agora usa o import map -->
-    <script type="module" src="./js/main.js?v=1.3"></script>
+    <script type="module" src="./js/main.js?v=1.4"></script>
 </body>
 </html>

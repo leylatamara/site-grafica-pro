@@ -24,45 +24,37 @@ let loggedInUserName = null;
 let loggedInUserIdGlobal = null;
 let activeSectionId = 'telaInicial';
 let permissoesDoCargo = [];
+let modulosIniciados = false; // Flag para controlar a inicialização
 
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
 
 injectAllTemplates();
 
-initAuth({
-    onUserLoggedIn: async (userData) => {
-        loggedInUserRole = userData.role;
-        loggedInUserName = userData.name;
-        loggedInUserIdGlobal = userData.id;
+/**
+ * Inicia a sessão de um utilizador, configurando a UI e carregando os dados.
+ * @param {object} userData - Os dados do utilizador logado.
+ */
+async function startUserSession(userData) {
+    loggedInUserRole = userData.role;
+    loggedInUserName = userData.name;
+    loggedInUserIdGlobal = userData.id;
 
-        await initPermissoes();
-        permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
+    await initPermissoes();
+    permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
 
-        const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-        if (loggedInUserNameDisplay) {
-            loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
-        }
+    const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
+    if (loggedInUserNameDisplay) {
+        loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
+    }
 
-        document.body.classList.add('app-visible');
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appContainer').classList.remove('hidden');
+    document.body.classList.add('app-visible');
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
 
-        configurarAcessoPorCargo();
-        
-        const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
-        if (paginaInicial) {
-            mostrarSecao(paginaInicial, true);
-        } else {
-            document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
-        }
-    },
-    onUserLoggedOut: () => {
-        document.body.classList.remove('app-visible');
-        document.getElementById('loginScreen').classList.remove('hidden');
-        document.getElementById('appContainer').classList.add('hidden');
-        document.body.style.paddingTop = '0px';
-    },
-    onAuthReady: async () => {
+    configurarAcessoPorCargo();
+    
+    // Inicializa os módulos de dados apenas uma vez
+    if (!modulosIniciados) {
         const commonDeps = {
             getRole: () => loggedInUserRole,
             getUserName: () => loggedInUserName,
@@ -80,6 +72,27 @@ initAuth({
         
         initClientes({ ...commonDeps, getPedidosCache: getPedidos });
         initPedidos({ ...commonDeps, getClientes, getProdutos });
+        modulosIniciados = true;
+    }
+
+    const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
+    if (paginaInicial) {
+        mostrarSecao(paginaInicial, true);
+    } else {
+        document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
+    }
+}
+
+initAuth({
+    onUserLoggedIn: startUserSession,
+    onUserLoggedOut: () => {
+        document.body.classList.remove('app-visible');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appContainer').classList.add('hidden');
+        document.body.style.paddingTop = '0px';
+    },
+    onAuthReady: () => {
+        console.log("Autenticação pronta.");
     }
 });
 
@@ -99,8 +112,6 @@ function mostrarSecao(idSecao, isMenuLink = false) {
     });
 
     const targetSection = document.getElementById(idSecao);
-    
-    // **INÍCIO DA CORREÇÃO**
     if (targetSection) {
         targetSection.classList.remove('hidden');
         targetSection.classList.toggle('interactive-theme-dashboard', idSecao === 'telaInicial');
@@ -115,18 +126,14 @@ function mostrarSecao(idSecao, isMenuLink = false) {
             }
         }
     } else { 
-        // Lógica de fallback à prova de falhas para prevenir loops infinitos
-        console.error(`A secção com o ID "${idSecao}" não foi encontrada no DOM.`);
-        const homeSection = document.getElementById('telaInicial');
-        if (homeSection && idSecao !== 'telaInicial') {
-            console.warn("A redirecionar para a página inicial.");
-            mostrarSecao('telaInicial', true); // Tenta ir para a home apenas uma vez.
+        const paginaInicial = permissoesDoCargo[0] || 'telaInicial';
+        if (idSecao !== paginaInicial) {
+            mostrarSecao(paginaInicial, true);
         } else {
-             document.getElementById('mainContentArea').innerHTML = `<h2>Erro Crítico: A página "${idSecao}" não pode ser encontrada.</h2>`;
+             document.getElementById('mainContentArea').innerHTML = `<h2>Erro Crítico: A página inicial "${paginaInicial}" não foi encontrada.</h2>`;
         }
         return;
     }
-    // **FIM DA CORREÇÃO**
 
     if (idSecao === 'telaInicial') atualizarDashboard();
     
@@ -187,6 +194,7 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     const userData = await handleLogin(codigo);
     
     if (userData) {
+        // **CORREÇÃO: Inicia a sessão diretamente sem recarregar a página**
         await startUserSession(userData);
     }
 });
