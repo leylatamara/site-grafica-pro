@@ -230,6 +230,8 @@
                 window.loggedInUserRole = userRole;
                 window.loggedInUserName = userName;
 
+                console.log('Usuário logado:', { role: userRole, name: userName }); // Debug
+
                 const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
                 const pedidoDoc = await getDoc(pedidoRef);
 
@@ -239,6 +241,7 @@
                 }
 
                 const pedido = pedidoDoc.data();
+                console.log('Dados do pedido:', pedido); // Debug
                 
                 // Preencher dados básicos
                 document.getElementById('numeroPedido').textContent = pedido.numeroPedido || `#PED-${pedidoId}`;
@@ -255,6 +258,7 @@
                 
                 if (pedido.itens && pedido.itens.length > 0) {
                     pedido.itens.forEach((item, index) => {
+                        console.log('Item:', item, 'Index:', index); // Debug
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
                             <td class="py-4 px-4 whitespace-nowrap">${item.quantidade}x</td>
@@ -275,7 +279,7 @@
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
                                                 ${['impressor', 'admin'].includes(loggedInUserRole) ? 
-                                                    `<button onclick="marcarItemComoImpresso('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                                                    `<button onclick="window.marcarItemComoImpresso('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como impresso
                                                     </button>` : 
                                                     ''}
@@ -295,7 +299,7 @@
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
                                                 ${['producao', 'admin'].includes(loggedInUserRole) ? 
-                                                    `<button onclick="marcarItemComoAcabado('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                                                    `<button onclick="window.marcarItemComoAcabado('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como acabado
                                                     </button>` : 
                                                     ''}
