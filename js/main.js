@@ -51,10 +51,12 @@ initAuth({
 
         configurarAcessoPorCargo();
         
+        // Verifica se o utilizador pode ver a página inicial, caso contrário, redireciona
         const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
         if (paginaInicial) {
             mostrarSecao(paginaInicial, true);
         } else {
+            // Caso de um cargo sem nenhuma permissão
             document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
         }
     },
@@ -65,15 +67,17 @@ initAuth({
         document.body.style.paddingTop = '0px';
     },
     onAuthReady: async () => {
+        // As dependências que cada módulo precisa
         const commonDeps = {
             getRole: () => loggedInUserRole,
             getUserName: () => loggedInUserName,
             getUserId: () => loggedInUserIdGlobal,
             mostrarSecao,
             setActiveMenuLink,
-            atualizarDashboard
+            atualizarDashboard // Passa a referência da função
         };
         
+        // Inicializa todos os módulos de funcionalidade
         await Promise.all([
             initFuncionarios(commonDeps),
             initFornecedores(commonDeps),
@@ -103,13 +107,8 @@ function mostrarSecao(idSecao, isMenuLink = false) {
     const targetSection = document.getElementById(idSecao);
     if (targetSection) {
         targetSection.classList.remove('hidden');
-        
-        // **INÍCIO DA CORREÇÃO**
-        // Estas linhas aplicam as classes de tema corretas a cada secção.
         targetSection.classList.toggle('interactive-theme-dashboard', idSecao === 'telaInicial');
         targetSection.classList.toggle('interactive-theme', idSecao !== 'telaInicial');
-        // **FIM DA CORREÇÃO**
-
         activeSectionId = idSecao;
         
         if (isMenuLink) {
@@ -131,11 +130,13 @@ function mostrarSecao(idSecao, isMenuLink = false) {
 }
 
 function configurarAcessoPorCargo() {
+    // Esconde/Mostra os itens do menu com base nas permissões
     document.querySelectorAll('.exo-menu [data-section-id]').forEach(item => {
         const sectionId = item.dataset.sectionId;
         item.classList.toggle('hidden', !permissoesDoCargo.includes(sectionId));
     });
 
+    // Esconde o dropdown de cadastros se nenhum item filho estiver visível
     const cadastrosDropdown = document.getElementById('dropdownCadastrosMenu');
     if (cadastrosDropdown) {
         const subItensVisiveis = cadastrosDropdown.querySelectorAll('ul.drop-down-ul > li:not(.hidden)');
@@ -195,4 +196,6 @@ document.querySelectorAll('.exo-menu a[data-section]').forEach(link => {
 });
 
 // --- EXPOSIÇÃO DE FUNÇÕES GLOBAIS ---
+// Apenas as funções que são chamadas diretamente pelo HTML (onclick)
+// precisam de estar no escopo global. Os módulos já tratam disto internamente.
 window.mostrarSecao = mostrarSecao;
