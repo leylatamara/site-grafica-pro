@@ -226,21 +226,21 @@
 
                 // Tentar diferentes caminhos para o pedido
                 const caminhos = [
-                    `pedidos/${pedidoId}`,
-                    `artifacts/${shopInstanceAppId}/pedidos/${pedidoId}`,
-                    `pedidos/${shopInstanceAppId}/${pedidoId}`
+                    ['pedidos', pedidoId],
+                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
+                    ['pedidos', shopInstanceAppId, pedidoId]
                 ];
 
                 let pedidoRef = null;
                 let pedido = null;
 
                 for (const caminho of caminhos) {
-                    console.log(`Tentando buscar pedido no caminho: ${caminho}`);
-                    const ref = doc(db, caminho);
+                    console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
+                    const ref = doc(db, ...caminho);
                     const pedidoDoc = await getDoc(ref);
                     
                     if (pedidoDoc.exists()) {
-                        console.log(`Pedido encontrado no caminho: ${caminho}`);
+                        console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
                         pedidoRef = ref;
                         pedido = pedidoDoc.data();
                         break;
@@ -298,21 +298,21 @@
 
                 // Tentar diferentes caminhos para o pedido
                 const caminhos = [
-                    `pedidos/${pedidoId}`,
-                    `artifacts/${shopInstanceAppId}/pedidos/${pedidoId}`,
-                    `pedidos/${shopInstanceAppId}/${pedidoId}`
+                    ['pedidos', pedidoId],
+                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
+                    ['pedidos', shopInstanceAppId, pedidoId]
                 ];
 
                 let pedidoRef = null;
                 let pedido = null;
 
                 for (const caminho of caminhos) {
-                    console.log(`Tentando buscar pedido no caminho: ${caminho}`);
-                    const ref = doc(db, caminho);
+                    console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
+                    const ref = doc(db, ...caminho);
                     const pedidoDoc = await getDoc(ref);
                     
                     if (pedidoDoc.exists()) {
-                        console.log(`Pedido encontrado no caminho: ${caminho}`);
+                        console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
                         pedidoRef = ref;
                         pedido = pedidoDoc.data();
                         break;
@@ -388,21 +388,21 @@
 
                 // Tentar diferentes caminhos para o pedido
                 const caminhos = [
-                    `pedidos/${pedidoId}`,
-                    `artifacts/${shopInstanceAppId}/pedidos/${pedidoId}`,
-                    `pedidos/${shopInstanceAppId}/${pedidoId}`
+                    ['pedidos', pedidoId],
+                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
+                    ['pedidos', shopInstanceAppId, pedidoId]
                 ];
 
                 let pedidoEncontrado = false;
                 let pedido = null;
 
                 for (const caminho of caminhos) {
-                    console.log(`Tentando buscar pedido no caminho: ${caminho}`);
-                    const pedidoRef = doc(db, caminho);
+                    console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
+                    const pedidoRef = doc(db, ...caminho);
                     const pedidoDoc = await getDoc(pedidoRef);
                     
                     if (pedidoDoc.exists()) {
-                        console.log(`Pedido encontrado no caminho: ${caminho}`);
+                        console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
                         pedido = pedidoDoc.data();
                         pedidoEncontrado = true;
                         break;
