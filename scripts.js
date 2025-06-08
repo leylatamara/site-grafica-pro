@@ -196,10 +196,17 @@ onAuthStateChanged(auth, async (user) => {
             document.body.classList.add('app-visible'); 
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContainer').classList.remove('hidden');
+            
             configurarAcessoPorCargo(loggedInUserRole);
-            setActiveMenuLink('telaInicial');
-            mostrarSecao('telaInicial', false); 
+            if (loggedInUserRole === 'impressor' || loggedInUserRole === 'producao') {
+                setActiveMenuLink('visualizarPedidos');
+                mostrarSecao('visualizarPedidos', true);
+            } else {
+                setActiveMenuLink('telaInicial');
+                mostrarSecao('telaInicial', false); 
+            }
             ajustarPaddingBody();
+
         } else {
             document.body.classList.remove('app-visible');
             document.getElementById('loginScreen').classList.remove('hidden');
@@ -280,7 +287,19 @@ async function handleLogin(codigo) {
 
             document.body.classList.add('app-visible'); 
             loginScreen.classList.add('hidden'); appContainer.classList.remove('hidden'); codigoAcessoInput.value = ''; 
-            configurarAcessoPorCargo(loggedInUserRole); setActiveMenuLink('telaInicial'); mostrarSecao('telaInicial', false); ajustarPaddingBody();
+            
+            // **MODIFICAÇÃO AQUI**
+            // Direciona o usuário para a tela correta com base no cargo.
+            configurarAcessoPorCargo(loggedInUserRole);
+            if (loggedInUserRole === 'impressor' || loggedInUserRole === 'producao') {
+                setActiveMenuLink('visualizarPedidos');
+                mostrarSecao('visualizarPedidos', true);
+            } else {
+                setActiveMenuLink('telaInicial');
+                mostrarSecao('telaInicial', false); 
+            }
+            ajustarPaddingBody();
+
         } else {
             loginErrorMessage.textContent = "Código inválido."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;
         }
@@ -753,5 +772,3 @@ document.addEventListener('DOMContentLoaded', () => {
     if (produtoTipoPrecoEditarEl) {
         togglePrecoFieldsEditar();
     }
-});
-
