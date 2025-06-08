@@ -604,6 +604,10 @@ window.marcarComoEntregue = async (pedidoId) => {
 };
 
 window.abrirDetalhesPedidoNovaGuia = (pedido) => {
+    if (!pedido || !pedido.id) {
+        console.error('Pedido inválido:', pedido);
+        return;
+    }
     const url = `detalhes-pedido.html?id=${pedido.id}`;
     window.open(url, '_blank');
 };

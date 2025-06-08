@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -159,6 +160,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
@@ -171,13 +173,19 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
         const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Função para formatar data
         function formatarData(data) {
             if (!data) return '-';
-            const d = new Date(data);
-            return d.toLocaleString('pt-BR');
+            if (data instanceof Date) {
+                return data.toLocaleString('pt-BR');
+            }
+            if (data.seconds) {
+                return new Date(data.seconds * 1000).toLocaleString('pt-BR');
+            }
+            return new Date(data).toLocaleString('pt-BR');
         }
 
         // Função para formatar valor monetário
@@ -197,6 +205,11 @@
             }
 
             try {
+                // Fazer login anônimo se necessário
+                if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
+
                 const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
                 const pedidoDoc = await getDoc(pedidoRef);
 
