@@ -255,42 +255,62 @@ onAuthStateChanged(auth, async (user) => {
 
 async function handleLogin(codigoAcesso) {
     try {
-        // Limpar dados antigos do localStorage
-        localStorage.removeItem('loggedInUserRole');
-        localStorage.removeItem('loggedInUserName');
-        localStorage.removeItem('loggedInUserId');
+        console.log('Iniciando login com código:', codigoAcesso);
         
+        // Buscar funcionário pelo código de acesso
         const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
         const q = query(funcionariosRef, where('codigoAcesso', '==', codigoAcesso));
         const querySnapshot = await getDocs(q);
         
         if (querySnapshot.empty) {
+            console.log('Código de acesso inválido');
             exibirMensagem('Código de acesso inválido.', 'error');
             return;
         }
         
-        const funcionarioDoc = querySnapshot.docs[0];
-        const funcionarioData = funcionarioDoc.data();
+        const funcionario = querySnapshot.docs[0].data();
+        console.log('Funcionário encontrado:', funcionario);
         
-        loggedInUserRole = funcionarioData.cargo;
-        loggedInUserName = funcionarioData.nome;
-        loggedInUserIdGlobal = funcionarioDoc.id;
+        // Fazer login anônimo no Firebase
+        const userCredential = await signInAnonymously(auth);
+        console.log('Login anônimo realizado:', userCredential.user.uid);
+        
+        // Salvar informações do usuário
+        loggedInUserRole = funcionario.cargo;
+        loggedInUserName = funcionario.nome;
+        loggedInUserIdGlobal = querySnapshot.docs[0].id;
         
         localStorage.setItem('loggedInUserRole', loggedInUserRole);
         localStorage.setItem('loggedInUserName', loggedInUserName);
         localStorage.setItem('loggedInUserId', loggedInUserIdGlobal);
         
-        console.log('Login bem-sucedido. Cargo:', loggedInUserRole);
-        
-        // Inicializar permissões se for admin
+        // Se for admin, inicializar permissões
         if (loggedInUserRole === 'admin') {
-            await inicializarPermissoes();
+            try {
+                await inicializarPermissoes();
+            } catch (error) {
+                console.error('Erro ao inicializar permissões:', error);
+            }
         }
         
-        configurarAcessoPorCargo(loggedInUserRole);
-        mostrarSecao('telaInicial', true);
-        exibirMensagem('Login realizado com sucesso!', 'success');
+        // Atualizar interface
+        const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
+        if (loggedInUserNameDisplay) {
+            loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
+        }
         
+        atualizarEstatisticasUsuario();
+        
+        document.body.classList.add('app-visible');
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appContainer').classList.remove('hidden');
+        
+        configurarAcessoPorCargo(loggedInUserRole);
+        setActiveMenuLink('telaInicial');
+        mostrarSecao('telaInicial', false);
+        ajustarPaddingBody();
+        
+        exibirMensagem('Login realizado com sucesso!', 'success');
     } catch (error) {
         console.error('Erro no login:', error);
         exibirMensagem('Erro ao realizar login. Por favor, tente novamente.', 'error');
@@ -413,6 +433,11 @@ async function mostrarSecao(idSecao, isMenuLink = false) {
 
         try {
             abrirModalEspecifico('modalGerenciarPermissoesOverlay');
+            // Adicionar evento de change ao select
+            const selectSetor = document.getElementById('selectSetorPermissao');
+            if (selectSetor) {
+                selectSetor.addEventListener('change', carregarPermissoesSetor);
+            }
             await carregarPermissoesSetor();
             return;
         } catch (error) {
@@ -758,7 +783,10 @@ async function inicializarPermissoes() {
             console.log('Verificando permissões para o setor:', setor);
             
             const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
+            console.log('Referência do documento de permissões:', permissoesRef.path);
+            
             const permissoesDoc = await getDoc(permissoesRef);
+            console.log('Documento de permissões existe:', permissoesDoc.exists());
             
             if (!permissoesDoc.exists()) {
                 console.log('Criando permissões padrão para o setor:', setor);
@@ -784,8 +812,8 @@ async function inicializarPermissoes() {
                         break;
                 }
                 
-                batch.set(permissoesRef, { paginas: permissoesPadrao });
                 console.log('Permissões padrão definidas para o setor:', setor, permissoesPadrao);
+                batch.set(permissoesRef, { paginas: permissoesPadrao });
             }
         }
         
@@ -817,7 +845,10 @@ async function carregarPermissoesSetor() {
         console.log('Carregando permissões para o setor:', setor);
         
         const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
+        console.log('Referência do documento de permissões:', permissoesRef.path);
+        
         const permissoesDoc = await getDoc(permissoesRef);
+        console.log('Documento de permissões existe:', permissoesDoc.exists());
         
         let permissoes = [];
         if (permissoesDoc.exists()) {
@@ -830,6 +861,7 @@ async function carregarPermissoesSetor() {
             const docAtualizado = await getDoc(permissoesRef);
             if (docAtualizado.exists()) {
                 permissoes = docAtualizado.data().paginas || [];
+                console.log('Permissões padrão criadas:', permissoes);
             }
         }
         
@@ -839,6 +871,7 @@ async function carregarPermissoesSetor() {
             throw new Error('Elementos de permissões não encontrados');
         }
         
+        console.log('Atualizando checkboxes com permissões:', permissoes);
         checkboxes.forEach(cb => {
             cb.checked = permissoes.includes(cb.value);
         });
@@ -893,6 +926,10 @@ async function verificarPermissaoPagina(pagina) {
 
 // Função para fechar o modal de permissões
 function fecharModalGerenciarPermissoes() {
+    const selectSetor = document.getElementById('selectSetorPermissao');
+    if (selectSetor) {
+        selectSetor.removeEventListener('change', carregarPermissoesSetor);
+    }
     fecharModalEspecifico('modalGerenciarPermissoesOverlay');
 }
 
