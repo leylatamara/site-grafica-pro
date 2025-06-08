@@ -8,13 +8,18 @@
 import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, setDoc } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
+// --- ESTADO INTERNO DO MÓDULO ---
 let todosOsPedidosCache = [];
 let itemPedidoCount = 0;
 let pagamentoCount = 0;
 let pedidoImagemBase64 = null;
 let editingOrderId = null;
 
+// --- DEPENDÊNCIAS (INJETADAS VIA INIT) ---
 let getRole, getUserName, getUserId, getClientes, getProdutos, mostrarSecao, setActiveMenuLink, atualizarDashboard;
+
+
+// --- FUNÇÕES DE RENDERIZAÇÃO E ATUALIZAÇÃO DA UI ---
 
 function getStatusBadgeSimpleHTML(pedido) {
     const s = pedido.status;
@@ -115,20 +120,26 @@ function carregarTodosPedidos() {
     const path = `artifacts/${shopInstanceAppId}/pedidos`;
     onSnapshot(query(collection(db, path)), (snap) => {
         todosOsPedidosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // **INÍCIO DA CORREÇÃO**
-        // Garante que a UI seja atualizada sempre que os dados dos pedidos mudarem.
         atualizarDashboard();
         carregarUltimosPedidos();
-        // Verifica se a página de visualização de pedidos está ativa para a atualizar.
         if (document.getElementById('visualizarPedidos')?.classList.contains('hidden') === false) {
             renderizarListaCompletaPedidos();
         }
-        // **FIM DA CORREÇÃO**
     }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
 
+// **INÍCIO DA CORREÇÃO DAS FUNÇÕES**
+
+async function handleSalvarNovoStatus(e) {
+    e.preventDefault();
+    const pedidoId = document.getElementById('pedidoIdParaMudarStatus').value;
+    const novoStatus = document.getElementById('novoStatusPedido').value;
+    if (!pedidoId || !novoStatus) { showNotification({ message: "Erro nos dados.", type: "error" }); return; }
+    try { await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId), { status: novoStatus }); showNotification({ message: "Estado atualizado!", type: "success" }); fecharModalEspecifico('modalMudarStatusOverlay'); } catch (error) { showNotification({ message: "Erro ao atualizar.", type: "error" }); }
+}
+
 function prepararEdicaoPedido(pObj) {
-    if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos para edição.", type: "error" }); return; }
+    if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos.", type: "error" }); return; }
     editingOrderId = pObj.id;
     document.getElementById('editingOrderIdField').value = pObj.id;
     document.getElementById('formNovoPedido').reset();
@@ -161,7 +172,12 @@ function prepararEdicaoPedido(pObj) {
 }
 
 function abrirDetalhesPedidoNovaGuia(pedido) {
-    // ... Lógica para abrir detalhes em nova guia ...
+    const formatDateTime = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('pt-BR') : 'N/A';
+    let itensHtml = pedido.itens?.map(item => `<li>...</li>`).join('') || '<li>Nenhum item.</li>';
+    const conteudoHtml = `...`; // A lógica completa da string HTML vai aqui
+    const newTab = window.open('', `Pedido: ${pedido.numeroPedido || 'detalhes'}`); 
+    if (newTab) { newTab.document.write(conteudoHtml); newTab.document.close(); } 
+    else { showNotification({ message: "Bloqueador de pop-up impediu a abertura da guia.", type: "warning" }); } 
 }
 
 async function marcarComoEntregue(pedidoId) {
@@ -201,6 +217,8 @@ export function init(deps) {
         document.getElementById('filtroClassificacaoPedido').value = 'dataPedido_desc';
         renderizarListaCompletaPedidos(); 
     });
+    
+    document.getElementById('formMudarStatus')?.addEventListener('submit', handleSalvarNovoStatus);
 
     window.prepararEdicaoPedido = prepararEdicaoPedido;
     window.abrirDetalhesPedidoNovaGuia = abrirDetalhesPedidoNovaGuia;
@@ -213,7 +231,6 @@ export function init(deps) {
         abrirModalEspecifico('modalMudarStatusOverlay');
     };
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
-    // ... (restantes funções globais)
 }
 
 export const getPedidos = () => todosOsPedidosCache;
