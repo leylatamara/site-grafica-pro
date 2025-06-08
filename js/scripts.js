@@ -210,3 +210,55 @@ function setActiveMenuLink(sectionId) {
         }
     }
 } 
+
+const pedidoClienteSearchEl = document.getElementById('pedidoClienteSearch'), 
+      pedidoClienteResultadosEl = document.getElementById('pedidoClienteResultados'), 
+      pedidoClienteIdEl = document.getElementById('pedidoClienteId'); 
+
+if (pedidoClienteSearchEl) {
+    pedidoClienteSearchEl.addEventListener('input', () => {
+        const termo = pedidoClienteSearchEl.value.toLowerCase();
+        pedidoClienteResultadosEl.innerHTML = '';
+        
+        if (termo.length < 2) {
+            pedidoClienteResultadosEl.classList.add('hidden');
+            pedidoClienteIdEl.value = '';
+            return;
+        }
+
+        const resultados = clientesCache.filter(cliente => 
+            (cliente.nome?.toLowerCase().includes(termo)) || 
+            (cliente.telefone?.includes(termo))
+        );
+
+        if (resultados.length > 0) {
+            pedidoClienteResultadosEl.classList.remove('hidden');
+            pedidoClienteResultadosEl.innerHTML = resultados.map(cliente => `
+                <div class="p-2 hover:bg-slate-100 cursor-pointer" 
+                     data-id="${cliente.id}" 
+                     data-nome="${cliente.nome}">
+                    ${cliente.nome} ${cliente.telefone ? '- ' + cliente.telefone : ''}
+                </div>
+            `).join('');
+        } else {
+            pedidoClienteResultadosEl.classList.remove('hidden');
+            pedidoClienteResultadosEl.innerHTML = '<div class="p-2 text-gray-500">Nenhum cliente encontrado.</div>';
+            pedidoClienteIdEl.value = '';
+        }
+    });
+
+    pedidoClienteResultadosEl.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-id]');
+        if (item) {
+            pedidoClienteSearchEl.value = item.dataset.nome;
+            pedidoClienteIdEl.value = item.dataset.id;
+            pedidoClienteResultadosEl.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('click', (ev) => {
+        if (!pedidoClienteSearchEl.contains(ev.target) && !pedidoClienteResultadosEl.contains(ev.target)) {
+            pedidoClienteResultadosEl.classList.add('hidden');
+        }
+    });
+} 
