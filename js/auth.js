@@ -5,7 +5,8 @@
  * Este ficheiro gere o login, logout e o estado da sessão do utilizador.
  */
 
-import { auth, db, onAuthStateChanged, signInAnonymously, getDocs, collection, query, where } from './firebase-config.js';
+// **CORREÇÃO: Importar a variável shopInstanceAppId**
+import { auth, db, onAuthStateChanged, signInAnonymously, getDocs, collection, query, where, shopInstanceAppId } from './firebase-config.js';
 
 /**
  * Realiza o login do funcionário com base no código de acesso.
@@ -23,7 +24,8 @@ export async function handleLogin(codigo, onSuccess) {
     }
 
     try {
-        const funcionariosRef = collection(db, `artifacts/default-app-id/funcionarios`);
+        // **CORREÇÃO: Usar a variável shopInstanceAppId para criar o caminho dinâmico**
+        const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
         const q = query(funcionariosRef, where("codigoAcesso", "==", codigo));
         const querySnapshot = await getDocs(q);
 
