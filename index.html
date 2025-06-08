@@ -956,6 +956,76 @@
             // Atualizar o ícone
             updateButtonIcon(newTheme);
         });
+
+        // Função para converter imagem em Base64
+        function getBase64FromImage(imgElement) {
+            const canvas = document.createElement('canvas');
+            canvas.width = imgElement.naturalWidth;
+            canvas.height = imgElement.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgElement, 0, 0);
+            return canvas.toDataURL('image/jpeg');
+        }
+
+        // Função para manipular o arquivo de imagem
+        function handleImagemFilePedido(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const preview = document.getElementById('pedidoImagemPreview');
+                        const placeholder = document.getElementById('pedidoImagemPreviewPlaceholder');
+                        
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                        
+                        // Armazenar a imagem em Base64
+                        window.imagemPreviewPedidoBase64 = getBase64FromImage(img);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Função para limpar a imagem do pedido
+        function limparImagemPedido() {
+            const preview = document.getElementById('pedidoImagemPreview');
+            const placeholder = document.getElementById('pedidoImagemPreviewPlaceholder');
+            
+            preview.src = '#';
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            
+            window.imagemPreviewPedidoBase64 = null;
+        }
+
+        // Adicionar evento de paste para a área de imagem
+        document.getElementById('pedidoImageDropArea').addEventListener('paste', function(e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    const dT = new DataTransfer();
+                    dT.items.add(file);
+                    
+                    const input = document.getElementById('pedidoImagemFile');
+                    input.files = dT.files;
+                    
+                    // Disparar o evento change manualmente
+                    const event = new Event('change', { bubbles: true });
+                    input.dispatchEvent(event);
+                    break;
+                }
+            }
+        });
+
+        // Inicializar variável global
+        window.imagemPreviewPedidoBase64 = null;
     </script>
 </body>
 </html>
