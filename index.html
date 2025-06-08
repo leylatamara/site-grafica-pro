@@ -1193,6 +1193,9 @@
 
     <script src="scripts.js" type="module"></script>
     <script>
+        // Importar a função carregarPermissoesSetor
+        import { carregarPermissoesSetor } from './scripts.js';
+
         // Função para calcular a configuração do tema
         function calculateSettingAsThemeString({ localStorageTheme, systemSettingDark }) {
             if (localStorageTheme !== null) {
@@ -1346,18 +1349,12 @@
                     // Abrir o modal
                     modal.classList.remove('hidden');
                     
-                    // Verificar se a função existe no escopo global
-                    if (typeof window.carregarPermissoesSetor === 'function') {
-                        // Chamar a função e configurar o event listener
-                        window.carregarPermissoesSetor();
-                        const selectSetor = document.getElementById('selectSetorPermissao');
-                        if (selectSetor) {
-                            selectSetor.removeEventListener('change', window.carregarPermissoesSetor);
-                            selectSetor.addEventListener('change', window.carregarPermissoesSetor);
-                        }
-                    } else {
-                        console.error('Função carregarPermissoesSetor não encontrada');
-                        exibirMensagem('Erro ao carregar permissões. Por favor, recarregue a página.', 'error');
+                    // Chamar a função e configurar o event listener
+                    carregarPermissoesSetor();
+                    const selectSetor = document.getElementById('selectSetorPermissao');
+                    if (selectSetor) {
+                        selectSetor.removeEventListener('change', carregarPermissoesSetor);
+                        selectSetor.addEventListener('change', carregarPermissoesSetor);
                     }
                     return;
                 }

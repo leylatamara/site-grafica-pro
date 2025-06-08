@@ -832,57 +832,43 @@ async function inicializarPermissoes() {
 }
 
 // Função para carregar as permissões do setor selecionado
-async function carregarPermissoesSetor() {
+export async function carregarPermissoesSetor() {
     try {
-        console.log('Iniciando carregamento de permissões do setor');
-        
-        const setor = document.getElementById('selectSetorPermissao')?.value;
-        if (!setor) {
-            console.error('Setor não encontrado no select');
-            throw new Error('Setor não encontrado');
-        }
-        
+        const setor = document.getElementById('selectSetorPermissao').value;
         console.log('Carregando permissões para o setor:', setor);
-        
-        const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
-        console.log('Referência do documento de permissões:', permissoesRef.path);
-        
-        const permissoesDoc = await getDoc(permissoesRef);
-        console.log('Documento de permissões existe:', permissoesDoc.exists());
-        
-        let permissoes = [];
-        if (permissoesDoc.exists()) {
-            permissoes = permissoesDoc.data().paginas || [];
-            console.log('Permissões encontradas:', permissoes);
-        } else {
-            console.log('Nenhuma permissão encontrada para o setor, usando padrão');
-            // Se não existir, criar permissões padrão
+
+        // Buscar permissões do Firebase
+        const permissoesRef = collection(db, 'permissoes');
+        const q = query(permissoesRef, where('setor', '==', setor));
+        const querySnapshot = await getDocs(q);
+
+        // Se não existir permissões para este setor, inicializar com valores padrão
+        if (querySnapshot.empty) {
+            console.log('Nenhuma permissão encontrada para o setor:', setor);
             await inicializarPermissoes();
-            const docAtualizado = await getDoc(permissoesRef);
-            if (docAtualizado.exists()) {
-                permissoes = docAtualizado.data().paginas || [];
-                console.log('Permissões padrão criadas:', permissoes);
-            }
+            return;
         }
-        
-        const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]');
-        if (!checkboxes.length) {
-            console.error('Checkboxes de permissões não encontrados');
-            throw new Error('Elementos de permissões não encontrados');
-        }
-        
-        console.log('Atualizando checkboxes com permissões:', permissoes);
-        checkboxes.forEach(cb => {
-            cb.checked = permissoes.includes(cb.value);
+
+        // Pegar o primeiro documento (deve haver apenas um por setor)
+        const permissaoDoc = querySnapshot.docs[0];
+        const permissoes = permissaoDoc.data().permissoes;
+
+        // Atualizar os checkboxes
+        const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            const pagina = checkbox.value;
+            checkbox.checked = permissoes[pagina] || false;
         });
-        
+
         console.log('Permissões carregadas com sucesso para o setor:', setor);
     } catch (error) {
         console.error('Erro ao carregar permissões:', error);
         exibirMensagem('Erro ao carregar permissões. Por favor, tente novamente.', 'error');
-        throw error; // Propagar o erro para ser tratado pela função chamadora
     }
 }
+
+// Adicionar a função ao escopo global
+window.carregarPermissoesSetor = carregarPermissoesSetor;
 
 // Função para salvar as permissões do setor
 async function salvarPermissoesSetor() {
@@ -1203,6 +1189,7 @@ async function handleFormSubmit(e) {
                     codigoAcesso: document.getElementById('funcionarioCodigoAcesso').value
                 };
                 break;
+                
                 
             case 'formCadastrarFornecedor':
                 collectionName = 'fornecedores';
