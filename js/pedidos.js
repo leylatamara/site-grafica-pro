@@ -128,7 +128,104 @@ function carregarTodosPedidos() {
     }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
 
-// **INÍCIO DA CORREÇÃO DAS FUNÇÕES**
+// **INÍCIO DA CORREÇÃO: Implementação das funções de formulário e ações**
+
+function popularSelectProduto(selectElement) {
+    const produtos = getProdutos();
+    selectElement.innerHTML = '<option value="">Selecione produto</option>' + produtos.map(p => 
+        `<option value="${p.id}" data-tipo="${p.tipoPreco}" data-preco-metro="${p.precoMetro || 0}" data-preco-unidade="${p.precoUnidade || 0}">${p.nome}</option>`
+    ).join('');
+}
+
+function adicionarItemPedidoForm(itemParaEditar = null) {
+    itemPedidoCount++;
+    const container = document.getElementById('itensPedidoContainer');
+    const div = document.createElement('div');
+    div.className = 'p-3.5 border rounded-lg space-y-2.5 item-pedido-form relative';
+    div.id = `itemPedido-${itemPedidoCount}`;
+    div.innerHTML = `<button type="button" onclick="window.removerItemPedidoForm(${itemPedidoCount})" class="absolute top-1.5 right-1.5 text-red-400 hover:text-red-600 p-1"><i class="fas fa-times"></i></button><h4 class="font-medium text-sm">Item ${itemPedidoCount}</h4><div><label class="label-text text-xs">Produto:</label><select class="input-field input-field-sm produto-select" id="itemProduto-${itemPedidoCount}"></select></div><div class="mt-2"><label class="label-text text-xs">Descrição do Item (Opcional):</label><input type="text" class="input-field input-field-sm item-descricao" id="itemDescricao-${itemPedidoCount}" placeholder="Ex: com laminação fosca..."></div><div id="camposProdutoMetro-${itemPedidoCount}" class="hidden grid grid-cols-2 gap-3"><div><label class="label-text text-xs">Largura (m):</label><input type="number" step="0.01" class="input-field input-field-sm dimensoes-produto" id="itemLargura-${itemPedidoCount}"></div><div><label class="label-text text-xs">Altura (m):</label><input type="number" step="0.01" class="input-field input-field-sm dimensoes-produto" id="itemAltura-${itemPedidoCount}"></div></div><div><label class="label-text text-xs">Qtd:</label><input type="number" value="1" min="1" class="input-field input-field-sm quantidade-produto" id="itemQuantidade-${itemPedidoCount}"></div><div><label class="label-text text-xs">Valor Item:</label><input type="text" class="input-field input-field-sm valor-item-produto font-medium" id="itemValor-${itemPedidoCount}" readonly value="R$ 0,00"></div>`;
+    container.appendChild(div);
+    const selectProduto = div.querySelector('.produto-select');
+    popularSelectProduto(selectProduto);
+    selectProduto.onchange = () => toggleCamposProduto(itemPedidoCount);
+    div.querySelector(`#itemLargura-${itemPedidoCount}`).oninput = () => calcularValorItem(itemPedidoCount);
+    div.querySelector(`#itemAltura-${itemPedidoCount}`).oninput = () => calcularValorItem(itemPedidoCount);
+    div.querySelector(`#itemQuantidade-${itemPedidoCount}`).oninput = () => calcularValorItem(itemPedidoCount);
+
+    if (itemParaEditar) {
+        selectProduto.value = itemParaEditar.produtoId;
+        selectProduto.dispatchEvent(new Event('change'));
+        div.querySelector('.quantidade-produto').value = itemParaEditar.quantidade;
+        div.querySelector('.item-descricao').value = itemParaEditar.descricao || '';
+        if (itemParaEditar.tipoProduto === 'metro') {
+            div.querySelector('.dimensoes-produto[id^="itemLargura"]').value = itemParaEditar.largura;
+            div.querySelector('.dimensoes-produto[id^="itemAltura"]').value = itemParaEditar.altura;
+        }
+        calcularValorItem(itemPedidoCount);
+    }
+}
+
+function removerItemPedidoForm(id) { document.getElementById(`itemPedido-${id}`)?.remove(); atualizarValorTotalPedido(); }
+function toggleCamposProduto(id) { const s = document.getElementById(`itemProduto-${id}`); document.getElementById(`camposProdutoMetro-${id}`).classList.toggle('hidden', s.options[s.selectedIndex]?.dataset.tipo !== 'metro'); calcularValorItem(id); }
+function calcularValorItem(id) {
+    const s = document.getElementById(`itemProduto-${id}`), o = s.options[s.selectedIndex], vI = document.getElementById(`itemValor-${id}`);
+    if (!o || !o.value) { vI.value = "R$ 0,00"; atualizarValorTotalPedido(); return; }
+    const t = o.dataset.tipo, pm = parseFloat(o.dataset.precoMetro), pu = parseFloat(o.dataset.precoUnidade), q = parseInt(document.getElementById(`itemQuantidade-${id}`).value) || 1;
+    let v = 0;
+    if (t === 'metro') {
+        const l = parseFloat(document.getElementById(`itemLargura-${id}`).value) || 0, a = parseFloat(document.getElementById(`itemAltura-${id}`).value) || 0;
+        if (l > 0 && a > 0 && pm > 0) v = (l * a * pm) * q;
+    } else { if (pu > 0) v = pu * q; }
+    vI.value = `R$ ${v.toFixed(2).replace('.', ',')}`;
+    atualizarValorTotalPedido();
+}
+
+function atualizarValorTotalPedido() {
+    let tI = 0;
+    document.querySelectorAll('.valor-item-produto').forEach(i => { tI += parseFloat(i.value.replace('R$ ', '').replace(',', '.')) || 0; });
+    document.getElementById('pedidoValorTotal').value = `R$ ${tI.toFixed(2).replace('.', ',')}`;
+    calcularTotaisPagamento();
+}
+
+function adicionarPagamentoForm(pagamentoParaEditar = null) {
+    pagamentoCount++;
+    const c = document.getElementById('pagamentosContainer');
+    const d = document.createElement('div');
+    d.className = 'grid grid-cols-1 sm:grid-cols-[2fr,1fr,auto] gap-3 items-end p-3 border rounded-lg pagamento-form-item';
+    d.id = `pagamentoItem-${pagamentoCount}`;
+    d.innerHTML = `<div><label class="label-text text-xs">Forma:</label><select class="input-field input-field-sm py-1.5 forma-pagamento"><option value="Dinheiro">Dinheiro</option><option value="Cartão de Crédito">Crédito</option><option value="Cartão de Débito">Débito</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Pendente">Pendente</option></select></div><div><label class="label-text text-xs">Valor (R$):</label><input type="number" step="0.01" class="input-field input-field-sm py-1.5 valor-pago" placeholder="0,00"></div><button type="button" onclick="window.removerPagamentoForm(${pagamentoCount})" class="btn btn-danger btn-small text-xs py-1.5 px-2 h-8"><i class="fas fa-trash"></i></button><div class="sm:col-span-3"><label class="label-text text-xs">Obs:</label><input type="text" class="input-field input-field-sm py-1.5 observacao-pagamento" placeholder="Ex: Entrada..."></div>`;
+    d.querySelector('.valor-pago').oninput = () => calcularTotaisPagamento();
+    c.appendChild(d);
+    if (pagamentoParaEditar) {
+        d.querySelector('.forma-pagamento').value = pagamentoParaEditar.forma;
+        d.querySelector('.valor-pago').value = pagamentoParaEditar.valorPago;
+        d.querySelector('.observacao-pagamento').value = pagamentoParaEditar.observacao || "";
+    }
+    calcularTotaisPagamento();
+}
+
+function removerPagamentoForm(id) { document.getElementById(`pagamentoItem-${id}`)?.remove(); calcularTotaisPagamento(); }
+function calcularTotaisPagamento() {
+    let tP = 0;
+    document.querySelectorAll('.pagamento-form-item .valor-pago').forEach(i => { tP += parseFloat(i.value) || 0; });
+    document.getElementById('pedidoTotalPago').value = `R$ ${tP.toFixed(2).replace('.', ',')}`;
+    const vT = parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ', '').replace(',', '.')) || 0;
+    document.getElementById('pedidoValorRestante').value = `R$ ${(vT - tP).toFixed(2).replace('.', ',')}`;
+}
+
+async function processImageFilePedido(file) {
+    const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
+    if (file?.type.startsWith('image/')) {
+        try {
+            const resizedBase64 = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => { const img = new Image(); img.onload = () => { let w = img.width, h = img.height; if (w > h) { if (w > 800) { h *= 800 / w; w = 800; } } else { if (h > 800) { w *= 800 / h; h = 800; } } const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.onerror = reject; img.src = e.target.result; }; reader.onerror = reject; reader.readAsDataURL(file); });
+            pedidoImagemBase64 = resizedBase64;
+            if (pI && pH) { pI.src = resizedBase64; pI.classList.remove('hidden'); pH.classList.add('hidden'); }
+        } catch (error) { console.error("Erro imagem:", error); showNotification({ message: "Não foi possível processar a imagem.", type: "error" }); pedidoImagemBase64 = null; if (pI && pH) { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); } }
+    } else { pedidoImagemBase64 = null; if (pI && pH) { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); } if (file) showNotification({ message: "Arquivo de imagem inválido.", type: "warning" }); }
+}
+function handleImagemFilePedido(ev) { processImageFilePedido(ev.target.files[0]); ev.target.value = null; }
+function handlePasteImagePedido(ev) { ev.preventDefault(); const items = (ev.clipboardData || window.clipboardData).items; for (const item of items) if (item.kind === 'file' && item.type.startsWith('image/')) { processImageFilePedido(item.getAsFile()); break; } }
+
 
 async function handleSalvarNovoStatus(e) {
     e.preventDefault();
@@ -174,7 +271,7 @@ function prepararEdicaoPedido(pObj) {
 function abrirDetalhesPedidoNovaGuia(pedido) {
     const formatDateTime = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('pt-BR') : 'N/A';
     let itensHtml = pedido.itens?.map(item => `<li>...</li>`).join('') || '<li>Nenhum item.</li>';
-    const conteudoHtml = `...`; // A lógica completa da string HTML vai aqui
+    const conteudoHtml = `...`;
     const newTab = window.open('', `Pedido: ${pedido.numeroPedido || 'detalhes'}`); 
     if (newTab) { newTab.document.write(conteudoHtml); newTab.document.close(); } 
     else { showNotification({ message: "Bloqueador de pop-up impediu a abertura da guia.", type: "warning" }); } 
@@ -195,6 +292,7 @@ function excluirPedido(pedidoId, numeroPedido) {
         }
     });
 }
+
 
 export function init(deps) {
     getRole = deps.getRole;
@@ -231,6 +329,15 @@ export function init(deps) {
         abrirModalEspecifico('modalMudarStatusOverlay');
     };
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
+    window.adicionarItemPedidoForm = adicionarItemPedidoForm;
+    window.removerItemPedidoForm = removerItemPedidoForm;
+    window.toggleCamposProduto = toggleCamposProduto;
+    window.calcularValorItem = calcularValorItem;
+    window.atualizarValorTotalPedido = atualizarValorTotalPedido;
+    window.adicionarPagamentoForm = adicionarPagamentoForm;
+    window.removerPagamentoForm = removerPagamentoForm;
+    window.calcularTotaisPagamento = calcularTotaisPagamento;
+    window.handleImagemFilePedido = handleImagemFilePedido;
 }
 
 export const getPedidos = () => todosOsPedidosCache;
