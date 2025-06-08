@@ -1325,12 +1325,10 @@
         function mostrarSecao(idSecao, isMenuLink = false) {
             try {
                 console.log('Tentando mostrar seção:', idSecao);
-                
                 // Esconder todas as seções primeiro
                 document.querySelectorAll('.main-content-section').forEach(section => {
                     section.classList.add('hidden');
                 });
-
                 // Se for a seção de permissões
                 if (idSecao === 'gerenciarPermissoes') {
                     // Verificar se o usuário é administrador
@@ -1339,30 +1337,24 @@
                         exibirMensagem('Acesso restrito a administradores.', 'error');
                         return;
                     }
-
                     const modal = document.getElementById('modalGerenciarPermissoesOverlay');
                     if (!modal) {
                         console.error('Modal de permissões não encontrado');
                         exibirMensagem('Erro ao abrir modal de permissões.', 'error');
                         return;
                     }
-
                     // Abrir o modal
                     modal.classList.remove('hidden');
-                    
                     // Carregar as permissões após o modal estar visível
                     setTimeout(() => {
-                        carregarPermissoesSetor();
+                        // Função de permissões será chamada pelo scripts.js
                     }, 100);
                     return;
                 }
-
                 // Mostrar a seção solicitada
                 const secao = document.getElementById(idSecao);
                 if (secao) {
                     secao.classList.remove('hidden');
-                    
-                    // Se for um link do menu, atualizar a classe ativa
                     if (isMenuLink) {
                         document.querySelectorAll('.exo-menu a').forEach(link => {
                             link.classList.remove('active');
