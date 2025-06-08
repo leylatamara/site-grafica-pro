@@ -850,7 +850,7 @@ window.togglePrecoFields = function() {
     }
 };
 
-async function carregarClientes() {
+window.carregarClientes = async function carregarClientes() {
     try {
         const clientesRef = collection(db, `artifacts/${shopInstanceAppId}/clientes`);
         const snapshot = await getDocs(clientesRef);
@@ -862,7 +862,7 @@ async function carregarClientes() {
     }
 }
 
-async function carregarProdutos() {
+window.carregarProdutos = async function carregarProdutos() {
     try {
         const produtosRef = collection(db, `artifacts/${shopInstanceAppId}/produtos`);
         const snapshot = await getDocs(produtosRef);
@@ -874,7 +874,7 @@ async function carregarProdutos() {
     }
 }
 
-async function carregarFuncionarios() {
+window.carregarFuncionarios = async function carregarFuncionarios() {
     try {
         const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
         const snapshot = await getDocs(funcionariosRef);
@@ -886,7 +886,7 @@ async function carregarFuncionarios() {
     }
 }
 
-async function carregarFornecedores() {
+window.carregarFornecedores = async function carregarFornecedores() {
     try {
         const fornecedoresRef = collection(db, `artifacts/${shopInstanceAppId}/fornecedores`);
         const snapshot = await getDocs(fornecedoresRef);
