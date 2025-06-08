@@ -901,3 +901,87 @@ window.carregarFornecedores = async function carregarFornecedores() {
         window.fornecedoresCache = [];
     }
 }
+
+window.marcarItemComoImpresso = async (pedidoId, itemIndex) => {
+    try {
+        const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+        const pedidoDoc = await getDoc(pedidoRef);
+        
+        if (!pedidoDoc.exists()) {
+            throw new Error('Pedido não encontrado');
+        }
+
+        const pedido = pedidoDoc.data();
+        if (!pedido.itens || !pedido.itens[itemIndex]) {
+            throw new Error('Item não encontrado');
+        }
+
+        const batch = writeBatch(db);
+        const item = pedido.itens[itemIndex];
+        
+        if (!item.productionSteps) {
+            item.productionSteps = {
+                impressao: { concluido: false },
+                acabamento: { concluido: false }
+            };
+        }
+
+        item.productionSteps.impressao = {
+            concluido: true,
+            responsavel: loggedInUserName,
+            data: Timestamp.now()
+        };
+
+        batch.update(pedidoRef, {
+            [`itens.${itemIndex}.productionSteps`]: item.productionSteps
+        });
+
+        await batch.commit();
+        exibirMensagem('Item marcado como impresso!', 'success');
+    } catch (error) {
+        console.error('Erro ao marcar item como impresso:', error);
+        exibirMensagem('Erro ao marcar item como impresso', 'error');
+    }
+};
+
+window.marcarItemComoAcabado = async (pedidoId, itemIndex) => {
+    try {
+        const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+        const pedidoDoc = await getDoc(pedidoRef);
+        
+        if (!pedidoDoc.exists()) {
+            throw new Error('Pedido não encontrado');
+        }
+
+        const pedido = pedidoDoc.data();
+        if (!pedido.itens || !pedido.itens[itemIndex]) {
+            throw new Error('Item não encontrado');
+        }
+
+        const batch = writeBatch(db);
+        const item = pedido.itens[itemIndex];
+        
+        if (!item.productionSteps) {
+            item.productionSteps = {
+                impressao: { concluido: false },
+                acabamento: { concluido: false }
+            };
+        }
+
+        item.productionSteps.acabamento = {
+            concluido: true,
+            responsavel: loggedInUserName,
+            data: Timestamp.now()
+        };
+
+        batch.update(pedidoRef, {
+            [`itens.${itemIndex}.productionSteps`]: item.productionSteps
+        });
+
+        await batch.commit();
+        exibirMensagem('Item marcado como acabado!', 'success');
+    } catch (error) {
+        console.error('Erro ao marcar item como acabado:', error);
+        exibirMensagem('Erro ao marcar item como acabado', 'error');
+    }
+};
