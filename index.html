@@ -442,12 +442,12 @@
 
             <ul class="exo-menu">
                 <li data-role-access="all">
-                    <a href="#" onclick="mostrarSecao('telaInicial', true)" data-section="telaInicial">
+                    <a href="#" data-section="telaInicial">
                         <span class="icon"><i class="fas fa-home"></i></span>Home
                     </a>
                 </li>
                 <li data-role-access="admin,vendedor">
-                    <a href="#" onclick="mostrarSecao('novoPedido', true)" data-section="novoPedido">
+                    <a href="#" data-section="novoPedido">
                         <span class="icon"><i class="fas fa-plus"></i></span>Novo Pedido
                     </a>
                 </li>
@@ -459,34 +459,34 @@
                     </a>
                     <ul class="drop-down-ul">
                         <li data-role-access="admin,vendedor">
-                            <a href="#" onclick="mostrarSecao('cadastrarCliente', true)" data-section="cadastrarCliente">
+                            <a href="#" data-section="cadastrarCliente">
                                 <span class="icon"><i class="fas fa-users"></i></span>Clientes
                             </a>
                         </li>
                         <li data-role-access="admin,designer">
-                            <a href="#" onclick="mostrarSecao('cadastrarProduto', true)" data-section="cadastrarProduto">
+                            <a href="#" data-section="cadastrarProduto">
                                 <span class="icon"><i class="fas fa-box"></i></span>Produtos
                             </a>
                         </li>
                         <li data-role-access="admin">
-                            <a href="#" onclick="mostrarSecao('cadastrarFuncionario', true)" data-section="cadastrarFuncionario">
+                            <a href="#" data-section="cadastrarFuncionario">
                                 <span class="icon"><i class="fas fa-user-tie"></i></span>Funcionários
                             </a>
                         </li>
                         <li data-role-access="admin">
-                            <a href="#" onclick="mostrarSecao('cadastrarFornecedor', true)" data-section="cadastrarFornecedor">
+                            <a href="#" data-section="cadastrarFornecedor">
                                 <span class="icon"><i class="fas fa-truck"></i></span>Fornecedores
                             </a>
                         </li>
                     </ul>
                 </li>
                 <li data-role-access="all">
-                    <a href="#" onclick="mostrarSecao('visualizarPedidos', true)" data-section="visualizarPedidos">
+                    <a href="#" data-section="visualizarPedidos">
                         <span class="icon"><i class="fas fa-list-alt"></i></span>Pedidos
                     </a>
                 </li>
                 <li data-role-access="admin">
-                    <a href="#" onclick="mostrarSecao('gerenciarPermissoes', true)" data-section="gerenciarPermissoes">
+                    <a href="#" data-section="gerenciarPermissoes">
                         <span class="icon"><i class="fas fa-lock"></i></span>Permissões
                     </a>
                 </li>
@@ -1324,7 +1324,7 @@
         // Inicializar o estado da imagem
         window.pedidoImagemState.limpar();
 
-        // Função para abrir o modal de permissões
+        // Função para mostrar seção
         function mostrarSecao(idSecao, isMenuLink = false) {
             try {
                 console.log('Tentando mostrar seção:', idSecao);
@@ -1391,6 +1391,15 @@
         window.fecharModalGerenciarPermissoes = fecharModalGerenciarPermissoes;
         window.handleImagemFilePedido = handleImagemFilePedido;
         window.limparImagemPedido = limparImagemPedido;
+
+        // Adicionar event listeners para os links do menu
+        document.querySelectorAll('.exo-menu a[data-section]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = e.target.closest('a[data-section]').dataset.section;
+                mostrarSecao(section, true);
+            });
+        });
     </script>
 </body>
 </html>
