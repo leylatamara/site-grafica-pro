@@ -8,17 +8,13 @@
 import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, setDoc } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
-// Estado interno do módulo
 let todosOsPedidosCache = [];
 let itemPedidoCount = 0;
 let pagamentoCount = 0;
 let pedidoImagemBase64 = null;
 let editingOrderId = null;
 
-// Dependências externas (injetadas)
 let getRole, getUserName, getUserId, getClientes, getProdutos, mostrarSecao, setActiveMenuLink, atualizarDashboard;
-
-// --- RENDERIZAÇÃO E ATUALIZAÇÃO DA UI DE PEDIDOS ---
 
 function getStatusBadgeSimpleHTML(pedido) {
     const s = pedido.status;
@@ -99,9 +95,7 @@ function renderizarListaCompletaPedidos() {
 function carregarUltimosPedidos() {
     const tb = document.getElementById('ultimosPedidosTableBody');
     if (!tb) return;
-
     const pRecentes = [...todosOsPedidosCache].sort((a, b) => (b.dataPedido?.toMillis() || 0) - (a.dataPedido?.toMillis() || 0)).slice(0, 5);
-
     if (pRecentes.length === 0) {
         tb.innerHTML = `<tr><td colspan="6" class="text-center py-10">Nenhum pedido recente.</td></tr>`;
     } else {
@@ -122,13 +116,10 @@ function carregarTodosPedidos(onUpdate) {
     onSnapshot(query(collection(db, path)), (snap) => {
         todosOsPedidosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (onUpdate) onUpdate();
-    }, e => { 
-        console.error("Erro ao carregar pedidos:", e); 
-        showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }); 
-    });
+    }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
 
-// ... (Restantes funções de manipulação de formulário, como adicionarItem, calcularValor, etc.)
+// ... (Restantes funções de manipulação de formulário) ...
 
 export function init(deps) {
     getRole = deps.getRole;
@@ -146,13 +137,11 @@ export function init(deps) {
         renderizarListaCompletaPedidos();
     });
 
-    // Adiciona os listeners de eventos da página de pedidos
+    // Adiciona listeners
     const filtros = ['filtroNomeCliente', 'filtroNumeroPedido', 'filtroMaterialProduto'];
     filtros.forEach(id => document.getElementById(id)?.addEventListener('input', renderizarListaCompletaPedidos));
-    
     const selects = ['filtroDataPedido', 'filtroStatusPedido', 'filtroClassificacaoPedido', 'filtroVendedor'];
     selects.forEach(id => document.getElementById(id)?.addEventListener('change', renderizarListaCompletaPedidos));
-
     document.getElementById('limparFiltrosPedidos')?.addEventListener('click', () => {
         filtros.concat(selects).forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
@@ -161,16 +150,21 @@ export function init(deps) {
         renderizarListaCompletaPedidos(); 
     });
 
-    // Anexa funções ao window para serem chamadas pelo HTML
-    window.prepararEdicaoPedido = (p) => { /* ... */ };
-    window.abrirDetalhesPedidoNovaGuia = (p) => { /* ... */ };
-    window.marcarComoEntregue = (id) => { /* ... */ };
-    window.excluirPedido = (id, nome) => { /* ... */ };
-    window.abrirModalMudarStatus = (id, num, cli, stat) => { /* ... */ };
+    // **INÍCIO DA CORREÇÃO**
+    // Anexa as funções ao objeto window para serem acessíveis globalmente
+    window.prepararEdicaoPedido = (p) => { /* ... código da função aqui ... */ };
+    window.abrirDetalhesPedidoNovaGuia = (p) => { /* ... código da função aqui ... */ };
+    window.marcarComoEntregue = (id) => { /* ... código da função aqui ... */ };
+    window.excluirPedido = (id, nome) => { /* ... código da função aqui ... */ };
+    window.abrirModalMudarStatus = (id, num, cli, stat) => {
+        document.getElementById('pedidoIdParaMudarStatus').value = id;
+        document.getElementById('infoPedidoParaMudarStatus').innerHTML = `<strong>Pedido:</strong> ${num}<br><strong>Cliente:</strong> ${cli}`;
+        document.getElementById('novoStatusPedido').value = stat;
+        abrirModalEspecifico('modalMudarStatusOverlay');
+    };
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
     // ... (restantes funções globais do formulário)
+    // **FIM DA CORREÇÃO**
 }
 
-// **INÍCIO DA CORREÇÃO**
 export const getPedidos = () => todosOsPedidosCache;
-// **FIM DA CORREÇÃO**
