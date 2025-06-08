@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestão para Gráficas Rápidas">
+    <meta name="theme-color" content="#0ea5e9">
     <title>Sistema Gráfica Rápida - Design Interativo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,37 +31,42 @@
     </script>
 </head>
 <body>
-    <!-- O resto do seu body HTML permanece exatamente igual -->
-    <div id="notificationBar" class="notification-bar">
+    <!-- Barra de Notificações -->
+    <div id="notificationBar" class="notification-bar" role="alert" aria-live="polite">
         <div class="notification-content">
-            <span id="notificationIcon" class="text-xl"></span>
+            <span id="notificationIcon" class="text-xl" aria-hidden="true"></span>
             <span id="notificationMessage"></span>
         </div>
         <div id="notificationActions"></div>
     </div>
-    <div id="loginScreen">
+
+    <!-- Tela de Login -->
+    <div id="loginScreen" role="dialog" aria-labelledby="loginTitle">
         <div class="login-card">
-            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO">
-            <h2 class="login-title">Acesso ao Sistema</h2>
+            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO" width="150" height="60">
+            <h2 id="loginTitle" class="login-title">Acesso ao Sistema</h2>
             <p class="login-subtitle">Insira o seu código de funcionário para continuar.</p>
-            <form id="loginForm">
-                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required>
+            <form id="loginForm" aria-describedby="loginErrorMessage">
+                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required aria-required="true">
                 <button type="submit" class="login-button">Entrar</button>
             </form>
-            <p id="loginErrorMessage" class="hidden"></p>
+            <p id="loginErrorMessage" class="hidden" role="alert"></p>
         </div>
     </div>
+
+    <!-- Container Principal -->
     <div id="appContainer" class="hidden">
-        <div class="exo-menu-container">
+        <header class="exo-menu-container">
             <div class="header-top-row flex justify-between items-center">
                 <div class="logo-area flex-shrink-0">
-                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8">
+                    <img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8" width="120" height="32">
                 </div>
                 <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
                 <div class="actions-area flex-shrink-0"> 
-                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button>
+                    <button id="logoutButton" class="text-xs py-1.5 px-3 rounded" aria-label="Sair do sistema"><i class="fas fa-sign-out-alt mr-1.5" aria-hidden="true"></i>Sair</button>
                 </div>
             </div>
+
             <div class="user-info-bar">
                 <span id="loggedInUserNameDisplay" class="font-semibold"></span>
                 <div class="user-stats">
@@ -68,49 +75,50 @@
                     <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
                 </div>
             </div>
-            <div class="menu-bar-wrapper"> 
+
+            <nav class="menu-bar-wrapper" role="navigation" aria-label="Menu principal"> 
                 <ul class="exo-menu clearfix">
                     <li data-section-id="telaInicial">
-                        <a href="#" data-section="telaInicial">
-                            <span class="icon"><i class="fa fa-home"></i></span>Home
+                        <a href="#" data-section="telaInicial" aria-label="Ir para página inicial">
+                            <span class="icon" aria-hidden="true"><i class="fa fa-home"></i></span>Home
                         </a>
                     </li>
                     <li data-section-id="novoPedido">
-                        <a href="#" data-section="novoPedido">
-                            <span class="icon"><i class="fa fa-plus"></i></span>Novo Pedido
+                        <a href="#" data-section="novoPedido" aria-label="Criar novo pedido">
+                            <span class="icon" aria-hidden="true"><i class="fa fa-plus"></i></span>Novo Pedido
                         </a>
                     </li>
                     <li class="drop-down" id="dropdownCadastrosMenu">
-                        <a href="#">
-                            <span class="icon"><i class="fa fa-archive"></i></span>
+                        <a href="#" aria-haspopup="true" aria-expanded="false">
+                            <span class="icon" aria-hidden="true"><i class="fa fa-archive"></i></span>
                             Cadastros
-                            <span class="arrow">&#9662;</span>
+                            <span class="arrow" aria-hidden="true">&#9662;</span>
                         </a>
-                        <ul class="drop-down-ul">
-                            <li data-section-id="cadastrarCliente"><a href="#" data-section="cadastrarCliente"><span class="icon"><i class="fa fa-users"></i></span>Clientes</a></li>
-                            <li data-section-id="cadastrarProduto"><a href="#" data-section="cadastrarProduto"><span class="icon"><i class="fa fa-box"></i></span>Produtos</a></li>
-                            <li data-section-id="cadastrarFuncionario"><a href="#" data-section="cadastrarFuncionario"><span class="icon"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
-                            <li data-section-id="cadastrarFornecedor"><a href="#" data-section="cadastrarFornecedor"><span class="icon"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
+                        <ul class="drop-down-ul" role="menu">
+                            <li data-section-id="cadastrarCliente"><a href="#" data-section="cadastrarCliente" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-users"></i></span>Clientes</a></li>
+                            <li data-section-id="cadastrarProduto"><a href="#" data-section="cadastrarProduto" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-box"></i></span>Produtos</a></li>
+                            <li data-section-id="cadastrarFuncionario"><a href="#" data-section="cadastrarFuncionario" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
+                            <li data-section-id="cadastrarFornecedor"><a href="#" data-section="cadastrarFornecedor" role="menuitem"><span class="icon" aria-hidden="true"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
                         </ul>
                     </li>
                     <li data-section-id="visualizarPedidos">
-                        <a href="#" data-section="visualizarPedidos">
-                            <span class="icon"><i class="fa fa-list-alt"></i></span>Pedidos
+                        <a href="#" data-section="visualizarPedidos" aria-label="Visualizar pedidos">
+                            <span class="icon" aria-hidden="true"><i class="fa fa-list-alt"></i></span>Pedidos
                         </a>
                     </li>
                     <li data-section-id="gerirPermissoes">
-                         <a href="#" data-section="gerirPermissoes">
-                            <span class="icon"><i class="fa fa-shield-alt"></i></span>Permissões
+                         <a href="#" data-section="gerirPermissoes" aria-label="Gerenciar permissões">
+                            <span class="icon" aria-hidden="true"><i class="fa fa-shield-alt"></i></span>Permissões
                         </a>
                     </li>
                 </ul>
-                <a href="#" class="toggle-menu"><i class="fas fa-bars"></i></a>
-            </div>
-        </div>
-        <div class="main-layout"> 
-            <main id="mainContentArea" class="content-area w-full"></main>
-        </div>
-        <footer class="site-footer">
+                <button class="toggle-menu" aria-label="Alternar menu"><i class="fas fa-bars" aria-hidden="true"></i></button>
+            </nav>
+        </header>
+
+        <main id="mainContentArea" class="content-area w-full" role="main"></main>
+
+        <footer class="site-footer" role="contentinfo">
             <p>Sistema de Gestão PRO para Gráficas.</p>
             <p><strong>Criado por: Jeffweb3</strong></p>
         </footer>
