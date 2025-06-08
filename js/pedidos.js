@@ -129,7 +129,7 @@ function carregarTodosPedidos() {
     }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
 
-// **INÍCIO DA CORREÇÃO: Implementação completa das funções**
+// **INÍCIO DA CORREÇÃO: Implementação completa das funções de formulário e ações**
 
 // --- Funções do Formulário de Pedidos ---
 
@@ -331,6 +331,7 @@ async function toggleItemProductionStep(pedidoId, itemIndex, stepName, isChecked
         try { await updateDoc(pedidoDocRef, { itens: novosItens }); showNotification({ message: `Etapa '${stepName}' atualizada.`, type: 'success', duration: 2000 }); } catch (error) { showNotification({ message: "Erro ao atualizar a etapa.", type: "error" }); }
     } else { showNotification({ message: "Pedido ou item não encontrado.", type: "error" }); }
 }
+
 
 export function init(deps) {
     getRole = deps.getRole;
