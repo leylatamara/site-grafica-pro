@@ -239,23 +239,32 @@ async function handleSalvarNovoStatus(e) {
 }
 
 function prepararEdicaoPedido(pObj) {
-    if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos.", type: "error" }); return; }
+    if (!pObj || !pObj.id) {
+        showNotification({ message: "Dados do pedido inválidos.", type: "error" });
+        return;
+    }
+
     editingOrderId = pObj.id;
     document.getElementById('editingOrderIdField').value = pObj.id;
-    document.getElementById('formEditarPedido').reset();
+    document.getElementById('formNovoPedido').reset();
     document.getElementById('itensPedidoContainer').innerHTML = '';
     document.getElementById('pagamentosContainer').innerHTML = '';
     itemPedidoCount = 0;
     pagamentoCount = 0;
     
-    ['pedidoDescricaoGeral', 'pedidoClienteSearch', 'pedidoVendedor', 'pedidoStatus'].forEach(id => {
-        const key = id.replace('pedido', '').toLowerCase().replace('search', 'Nome');
-        document.getElementById(id).value = pObj[key] || '';
-    });
+    // Preenche os dados básicos do pedido
+    document.getElementById('pedidoDataHora').value = pObj.dataPedido?.toDate().toLocaleString('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+    }) || '';
     
-    document.getElementById('pedidoClienteId').value = pObj.clienteId || "";
-    document.getElementById('pedidoDataHora').value = pObj.dataPedido?.toDate().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}) || '';
+    document.getElementById('pedidoDescricaoGeral').value = pObj.descricaoGeral || '';
+    document.getElementById('pedidoClienteSearch').value = pObj.clienteNome || '';
+    document.getElementById('pedidoClienteId').value = pObj.clienteId || '';
+    document.getElementById('pedidoVendedor').value = pObj.vendedorId || '';
+    document.getElementById('pedidoStatus').value = pObj.status || 'Aguardando Aprovação';
 
+    // Preenche a data e hora de entrega
     const dETS = pObj.dataEntrega && typeof pObj.dataEntrega.seconds === 'number' 
         ? new Timestamp(pObj.dataEntrega.seconds, pObj.dataEntrega.nanoseconds) 
         : null;
@@ -264,13 +273,13 @@ function prepararEdicaoPedido(pObj) {
     if (dE) {
         document.getElementById('pedidoDataEntrega').value = dE.toISOString().split('T')[0];
         document.getElementById('pedidoHoraEntrega').value = dE.toTimeString().split(' ')[0].substring(0, 5);
-    } else {
-        document.getElementById('pedidoDataEntrega').value = "";
-        document.getElementById('pedidoHoraEntrega').value = "";
     }
 
+    // Preenche a imagem do pedido
     pedidoImagemBase64 = pObj.imagemPreviewPedidoBase64 || null;
-    const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
+    const pI = document.getElementById('pedidoImagemPreview');
+    const pH = document.getElementById('pedidoImagemPreviewPlaceholder');
+    
     if (pedidoImagemBase64) {
         pI.src = pedidoImagemBase64;
         pI.classList.remove('hidden');
@@ -281,21 +290,30 @@ function prepararEdicaoPedido(pObj) {
         pH.classList.remove('hidden');
     }
 
+    // Preenche os itens do pedido
     if (pObj.itens && Array.isArray(pObj.itens)) {
         pObj.itens.forEach(item => {
             adicionarItemPedidoForm(item);
         });
     }
 
+    // Preenche os pagamentos
     if (pObj.pagamentos && Array.isArray(pObj.pagamentos)) {
         pObj.pagamentos.forEach(pgto => {
             adicionarPagamentoForm(pgto);
         });
     }
 
+    // Atualiza os totais
     atualizarValorTotalPedido();
-    mostrarSecao('editarPedido', true);
-    setActiveMenuLink('editarPedido');
+    
+    // Atualiza o botão de submit
+    document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = 
+        '<i class="fas fa-save mr-1.5"></i>Atualizar Pedido';
+    
+    // Mostra a seção de edição
+    mostrarSecao('novoPedido', true);
+    setActiveMenuLink('novoPedido');
 }
 
 function abrirDetalhesPedidoNovaGuia(pedido) {

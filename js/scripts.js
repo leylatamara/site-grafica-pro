@@ -211,41 +211,50 @@ function setActiveMenuLink(sectionId) {
     }
 } 
 
-const pedidoClienteSearchEl = document.getElementById('pedidoClienteSearch'), 
-      pedidoClienteResultadosEl = document.getElementById('pedidoClienteResultados'), 
-      pedidoClienteIdEl = document.getElementById('pedidoClienteId'); 
+const pedidoClienteSearchEl = document.getElementById('pedidoClienteSearch'),
+      pedidoClienteResultadosEl = document.getElementById('pedidoClienteResultados'),
+      pedidoClienteIdEl = document.getElementById('pedidoClienteId');
 
 if (pedidoClienteSearchEl) {
+    let searchTimeout;
+    
     pedidoClienteSearchEl.addEventListener('input', () => {
-        const termo = pedidoClienteSearchEl.value.toLowerCase();
-        pedidoClienteResultadosEl.innerHTML = '';
+        clearTimeout(searchTimeout);
+        const termo = pedidoClienteSearchEl.value.toLowerCase().trim();
         
         if (termo.length < 2) {
-            pedidoClienteResultadosEl.classList.add('hidden');
+            pedidoClienteResultadosEl.innerHTML = '<div class="p-2 text-sm text-gray-500 text-center">Digite pelo menos 2 caracteres...</div>';
+            pedidoClienteResultadosEl.classList.remove('hidden');
             pedidoClienteIdEl.value = '';
             return;
         }
 
-        const clientes = getClientes();
-        const resultados = clientes.filter(cliente => 
-            (cliente.nome?.toLowerCase().includes(termo)) || 
-            (cliente.telefone?.includes(termo))
-        );
+        searchTimeout = setTimeout(() => {
+            const clientes = getClientes();
+            const resultados = clientes.filter(cliente => 
+                (cliente.nome?.toLowerCase().includes(termo)) || 
+                (cliente.telefone?.includes(termo))
+            );
 
-        if (resultados.length > 0) {
-            pedidoClienteResultadosEl.classList.remove('hidden');
-            pedidoClienteResultadosEl.innerHTML = resultados.map(cliente => `
-                <div class="p-2 hover:bg-slate-100 cursor-pointer" 
-                     data-id="${cliente.id}" 
-                     data-nome="${cliente.nome}">
-                    ${cliente.nome} ${cliente.telefone ? '- ' + cliente.telefone : ''}
-                </div>
-            `).join('');
-        } else {
-            pedidoClienteResultadosEl.classList.remove('hidden');
-            pedidoClienteResultadosEl.innerHTML = '<div class="p-2 text-gray-500">Nenhum cliente encontrado.</div>';
-            pedidoClienteIdEl.value = '';
-        }
+            if (resultados.length > 0) {
+                pedidoClienteResultadosEl.classList.remove('hidden');
+                pedidoClienteResultadosEl.innerHTML = resultados.map(cliente => `
+                    <div class="p-2 hover:bg-slate-100 cursor-pointer border-b last:border-b-0" 
+                         data-id="${cliente.id}" 
+                         data-nome="${cliente.nome}">
+                        <div class="font-medium">${cliente.nome}</div>
+                        <div class="text-sm text-gray-600">
+                            ${cliente.telefone ? `📞 ${cliente.telefone}` : ''}
+                            ${cliente.email ? ` | ✉️ ${cliente.email}` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                pedidoClienteResultadosEl.classList.remove('hidden');
+                pedidoClienteResultadosEl.innerHTML = '<div class="p-2 text-sm text-gray-500 text-center">Nenhum cliente encontrado.</div>';
+                pedidoClienteIdEl.value = '';
+            }
+        }, 300);
     });
 
     pedidoClienteResultadosEl.addEventListener('click', (e) => {

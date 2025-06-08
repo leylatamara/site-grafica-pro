@@ -34,27 +34,109 @@ export function injectAllTemplates() {
                 <input type="hidden" id="editingOrderIdField">
                 <div><label for="pedidoDataHora" class="label-text">Data e Hora do Pedido:</label><input type="text" id="pedidoDataHora" class="input-field" readonly></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="relative"><label for="pedidoClienteSearch" class="label-text">Cliente:</label><input type="text" id="pedidoClienteSearch" class="input-field" placeholder="Pesquisar cliente..."><input type="hidden" id="pedidoClienteId"><div id="pedidoClienteResultados" class="absolute z-20 w-full border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto hidden"></div><button type="button" onclick="window.abrirModalNovoClienteRapido()" class="mt-2 btn btn-link text-xs">Registar novo cliente</button></div>
-                    <div><label for="pedidoVendedor" class="label-text">Funcionário (Vendedor):</label><select id="pedidoVendedor" class="input-field"><option value="">Selecione um funcionário</option></select></div>
-                </div>
-                <div class="pt-5 border-t"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Itens do Pedido</h3></div><div id="itensPedidoContainer" class="space-y-4"></div><button type="button" onclick="window.adicionarItemPedidoForm()" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-plus mr-1.5"></i>Adicionar Produto</button></div>
-                <div class="pt-5 border-t space-y-4">
-                    <div><label for="pedidoDescricaoGeral" class="label-text">Descrição Geral do Pedido:</label><textarea id="pedidoDescricaoGeral" rows="2" class="input-field text-lg font-semibold" placeholder="Ex: Kit Adesivos para Vitrine..."></textarea></div>
-                    <div><label class="label-text">Preview do Pedido (Opcional):</label><div id="pedidoImageDropArea" class="image-drop-area" onclick="document.getElementById('pedidoImagemFile').click();"><input type="file" accept="image/*" class="hidden" id="pedidoImagemFile" onchange="window.handleImagemFilePedido(event)"><img src="#" alt="Preview do Pedido" id="pedidoImagemPreview" class="hidden preview-image"><span id="pedidoImagemPreviewPlaceholder" class="text-sm"><i class="fas fa-image fa-2x mb-1.5"></i><br>Cole ou clique para carregar imagem</span></div></div>
+                    <div class="relative">
+                        <label for="pedidoClienteSearch" class="label-text">Cliente:</label>
+                        <div class="relative">
+                            <input type="text" id="pedidoClienteSearch" class="input-field pr-10" placeholder="Pesquisar cliente por nome ou telefone...">
+                            <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <input type="hidden" id="pedidoClienteId">
+                        <div id="pedidoClienteResultados" class="absolute z-20 w-full border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto hidden bg-white">
+                            <div class="p-2 text-sm text-gray-500 text-center">Digite para pesquisar...</div>
+                        </div>
+                        <button type="button" onclick="window.abrirModalNovoClienteRapido()" class="mt-2 btn btn-link text-xs">
+                            <i class="fas fa-user-plus mr-1"></i>Registar novo cliente
+                        </button>
+                    </div>
+                    <div>
+                        <label for="pedidoVendedor" class="label-text">Funcionário (Vendedor):</label>
+                        <select id="pedidoVendedor" class="input-field">
+                            <option value="">Selecione um funcionário</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="pt-5 border-t">
-                    <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Detalhes do Pagamento</h3></div><div id="pagamentosContainer" class="space-y-4"></div><button type="button" onclick="window.adicionarPagamentoForm()" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-dollar-sign mr-1.5"></i>Adicionar Pagamento</button>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Itens do Pedido</h3>
+                    </div>
+                    <div id="itensPedidoContainer" class="space-y-4"></div>
+                    <button type="button" onclick="window.adicionarItemPedidoForm()" class="mt-4 btn btn-outline btn-small text-sm">
+                        <i class="fas fa-plus mr-1.5"></i>Adicionar Produto
+                    </button>
+                </div>
+                <div class="pt-5 border-t space-y-4">
+                    <div>
+                        <label for="pedidoDescricaoGeral" class="label-text">Descrição Geral do Pedido:</label>
+                        <textarea id="pedidoDescricaoGeral" rows="2" class="input-field text-lg font-semibold" placeholder="Ex: Kit Adesivos para Vitrine..."></textarea>
+                    </div>
+                    <div>
+                        <label class="label-text">Preview do Pedido (Opcional):</label>
+                        <div id="pedidoImageDropArea" class="image-drop-area" onclick="document.getElementById('pedidoImagemFile').click();">
+                            <input type="file" accept="image/*" class="hidden" id="pedidoImagemFile" onchange="window.handleImagemFilePedido(event)">
+                            <img src="#" alt="Preview do Pedido" id="pedidoImagemPreview" class="hidden preview-image">
+                            <span id="pedidoImagemPreviewPlaceholder" class="text-sm">
+                                <i class="fas fa-image fa-2x mb-1.5"></i><br>
+                                Cole ou clique para carregar imagem
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-5 border-t">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Detalhes do Pagamento</h3>
+                    </div>
+                    <div id="pagamentosContainer" class="space-y-4"></div>
+                    <button type="button" onclick="window.adicionarPagamentoForm()" class="mt-4 btn btn-outline btn-small text-sm">
+                        <i class="fas fa-dollar-sign mr-1.5"></i>Adicionar Pagamento
+                    </button>
                     <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                        <div><label class="label-text">Valor Total do Pedido:</label><input type="text" id="pedidoValorTotal" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div>
-                        <div><label class="label-text">Total Pago:</label><input type="text" id="pedidoTotalPago" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div>
-                        <div><label class="label-text">Valor Restante:</label><input type="text" id="pedidoValorRestante" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div>
+                        <div>
+                            <label class="label-text">Valor Total do Pedido:</label>
+                            <input type="text" id="pedidoValorTotal" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                        </div>
+                        <div>
+                            <label class="label-text">Total Pago:</label>
+                            <input type="text" id="pedidoTotalPago" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                        </div>
+                        <div>
+                            <label class="label-text">Valor Restante:</label>
+                            <input type="text" id="pedidoValorRestante" class="input-field text-lg font-semibold" readonly value="R$ 0,00">
+                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t">
-                    <div class="grid grid-cols-2 gap-4"><div><label for="pedidoDataEntrega" class="label-text">Data Entrega:</label><input type="date" id="pedidoDataEntrega" class="input-field"></div><div><label for="pedidoHoraEntrega" class="label-text">Hora Entrega:</label><input type="time" id="pedidoHoraEntrega" class="input-field"></div></div>
-                    <div><label for="pedidoStatus" class="label-text">Estado do Pedido:</label><select id="pedidoStatus" class="input-field"><option value="Aguardando Aprovação">Aguardando Aprovação</option><option value="Em Produção (Arte)">Em Produção (Arte)</option><option value="Em Produção (Impressão)">Em Produção (Impressão)</option><option value="Em Produção (Acabamento)">Em Produção (Acabamento)</option><option value="Pronto para Retirada">Pronto para Retirada</option><option value="Em Rota de Entrega">Em Rota de Entrega</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="pedidoDataEntrega" class="label-text">Data Entrega:</label>
+                            <input type="date" id="pedidoDataEntrega" class="input-field">
+                        </div>
+                        <div>
+                            <label for="pedidoHoraEntrega" class="label-text">Hora Entrega:</label>
+                            <input type="time" id="pedidoHoraEntrega" class="input-field">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="pedidoStatus" class="label-text">Estado do Pedido:</label>
+                        <select id="pedidoStatus" class="input-field">
+                            <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                            <option value="Em Produção (Arte)">Em Produção (Arte)</option>
+                            <option value="Em Produção (Impressão)">Em Produção (Impressão)</option>
+                            <option value="Em Produção (Acabamento)">Em Produção (Acabamento)</option>
+                            <option value="Pronto para Retirada">Pronto para Retirada</option>
+                            <option value="Em Rota de Entrega">Em Rota de Entrega</option>
+                            <option value="Entregue">Entregue</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-6 border-t"><button type="button" onclick="mostrarSecao('telaInicial', true);" class="btn btn-secondary">Cancelar</button><button type="submit" class="btn btn-primary"><i class="fas fa-check mr-1.5"></i>Guardar Pedido</button></div>
+                <div class="flex justify-end space-x-3 pt-6 border-t">
+                    <button type="button" onclick="mostrarSecao('telaInicial', true);" class="btn btn-secondary">
+                        <i class="fas fa-times mr-1.5"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check mr-1.5"></i>Guardar Pedido
+                    </button>
+                </div>
             </form>`,
         editarPedido: `
             <h2 class="text-xl font-semibold mb-6 pb-4 border-b">Editar Pedido</h2>
