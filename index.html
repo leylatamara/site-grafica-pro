@@ -1378,57 +1378,6 @@
         function fecharModalGerenciarPermissoes() {
             fecharModalEspecifico('modalGerenciarPermissoesOverlay');
         }
-
-        // Carregar permissões do setor selecionado
-        async function carregarPermissoesSetor() {
-            try {
-                const setor = document.getElementById('selectSetorPermissao').value;
-                const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
-                const permissoesDoc = await getDoc(permissoesRef);
-                
-                let permissoes = [];
-                if (permissoesDoc.exists()) {
-                    permissoes = permissoesDoc.data().paginas || [];
-                } else {
-                    // Se não existir, criar permissões padrão
-                    await inicializarPermissoes();
-                    const docAtualizado = await getDoc(permissoesRef);
-                    if (docAtualizado.exists()) {
-                        permissoes = docAtualizado.data().paginas || [];
-                    }
-                }
-                
-                document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
-                    cb.checked = permissoes.includes(cb.value);
-                });
-            } catch (error) {
-                console.error('Erro ao carregar permissões:', error);
-                exibirMensagem('Erro ao carregar permissões. Por favor, tente novamente.', 'error');
-            }
-        }
-
-        document.getElementById('selectSetorPermissao').addEventListener('change', carregarPermissoesSetor);
-
-        // Salvar permissões do setor
-        async function salvarPermissoesSetor() {
-            try {
-                const setor = document.getElementById('selectSetorPermissao').value;
-                const permissoes = Array.from(document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]:checked'))
-                    .map(cb => cb.value);
-                
-                const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
-                await setDoc(permissoesRef, { paginas: permissoes }, { merge: true });
-                
-                exibirMensagem('Permissões salvas com sucesso!', 'success');
-                fecharModalGerenciarPermissoes();
-                
-                // Atualizar o menu para refletir as novas permissões
-                configurarAcessoPorCargo(loggedInUserRole);
-            } catch (error) {
-                console.error('Erro ao salvar permissões:', error);
-                exibirMensagem('Erro ao salvar permissões. Por favor, tente novamente.', 'error');
-            }
-        }
     </script>
 </body>
 </html>
