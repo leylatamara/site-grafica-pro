@@ -774,84 +774,63 @@ document.addEventListener('DOMContentLoaded', () => {
 async function inicializarPermissoes() {
     try {
         console.log('Iniciando inicialização de permissões');
-        
-        // Verificar se já existem permissões para cada setor
         const setores = ['admin', 'vendedor', 'designer', 'impressor', 'producao'];
         const batch = writeBatch(db);
-        
+
         for (const setor of setores) {
             console.log('Verificando permissões para o setor:', setor);
-            
-            const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
-            console.log('Referência do documento de permissões:', permissoesRef.path);
+            const permissoesRef = doc(db, 'permissoes', setor);
             
             const permissoesDoc = await getDoc(permissoesRef);
             console.log('Documento de permissões existe:', permissoesDoc.exists());
-            
+
             if (!permissoesDoc.exists()) {
-                console.log('Criando permissões padrão para o setor:', setor);
-                
                 // Definir permissões padrão para cada setor
-                let permissoesPadrao = ['telaInicial'];
-                
-                switch (setor) {
-                    case 'admin':
-                        permissoesPadrao = ['telaInicial', 'novoPedido', 'cadastrarCliente', 'cadastrarProduto', 'cadastrarFuncionario', 'cadastrarFornecedor', 'visualizarPedidos', 'gerenciarPermissoes'];
-                        break;
-                    case 'vendedor':
-                        permissoesPadrao = ['telaInicial', 'novoPedido', 'cadastrarCliente', 'visualizarPedidos'];
-                        break;
-                    case 'designer':
-                        permissoesPadrao = ['telaInicial', 'cadastrarProduto', 'visualizarPedidos'];
-                        break;
-                    case 'impressor':
-                        permissoesPadrao = ['telaInicial', 'visualizarPedidos'];
-                        break;
-                    case 'producao':
-                        permissoesPadrao = ['telaInicial', 'visualizarPedidos'];
-                        break;
-                }
-                
-                console.log('Permissões padrão definidas para o setor:', setor, permissoesPadrao);
-                batch.set(permissoesRef, { paginas: permissoesPadrao });
+                const permissoesPadrao = {
+                    setor: setor,
+                    paginas: {
+                        telaInicial: true,
+                        novoPedido: setor === 'admin' || setor === 'vendedor',
+                        cadastrarCliente: setor === 'admin' || setor === 'vendedor',
+                        cadastrarProduto: setor === 'admin' || setor === 'designer',
+                        cadastrarFuncionario: setor === 'admin',
+                        cadastrarFornecedor: setor === 'admin',
+                        visualizarPedidos: true
+                    }
+                };
+
+                batch.set(permissoesRef, permissoesPadrao);
+                console.log('Permissões padrão definidas para o setor:', setor);
             }
         }
-        
-        // Executar o batch se houver alterações
-        if (batch._ops.length > 0) {
-            console.log('Salvando permissões padrão no banco de dados');
-            await batch.commit();
-            console.log('Permissões padrão salvas com sucesso');
-        } else {
-            console.log('Todas as permissões já existem, nenhuma alteração necessária');
-        }
+
+        await batch.commit();
+        console.log('Inicialização de permissões concluída com sucesso');
     } catch (error) {
         console.error('Erro ao inicializar permissões:', error);
-        throw error; // Propagar o erro para ser tratado pela função chamadora
+        throw error;
     }
 }
 
 // Função para carregar as permissões do setor selecionado
-export async function carregarPermissoesSetor() {
+async function carregarPermissoesSetor() {
     try {
         const setor = document.getElementById('selectSetorPermissao').value;
         console.log('Carregando permissões para o setor:', setor);
 
         // Buscar permissões do Firebase
-        const permissoesRef = collection(db, 'permissoes');
-        const q = query(permissoesRef, where('setor', '==', setor));
-        const querySnapshot = await getDocs(q);
+        const permissoesRef = doc(db, 'permissoes', setor);
+        const permissoesDoc = await getDoc(permissoesRef);
 
         // Se não existir permissões para este setor, inicializar com valores padrão
-        if (querySnapshot.empty) {
+        if (!permissoesDoc.exists()) {
             console.log('Nenhuma permissão encontrada para o setor:', setor);
             await inicializarPermissoes();
             return;
         }
 
-        // Pegar o primeiro documento (deve haver apenas um por setor)
-        const permissaoDoc = querySnapshot.docs[0];
-        const permissoes = permissaoDoc.data().permissoes;
+        // Pegar as permissões do documento
+        const permissoes = permissoesDoc.data().paginas;
 
         // Atualizar os checkboxes
         const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type="checkbox"]');
@@ -867,29 +846,41 @@ export async function carregarPermissoesSetor() {
     }
 }
 
-// Adicionar a função ao escopo global
+// Adicionar as funções ao escopo global
 window.carregarPermissoesSetor = carregarPermissoesSetor;
+window.inicializarPermissoes = inicializarPermissoes;
 
 // Função para salvar as permissões do setor
 async function salvarPermissoesSetor() {
     try {
         const setor = document.getElementById('selectSetorPermissao').value;
-        const permissoes = Array.from(document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]:checked'))
-            .map(cb => cb.value);
-        
-        const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
-        await setDoc(permissoesRef, { paginas: permissoes }, { merge: true });
-        
-        console.log('Permissões salvas para o setor:', setor, permissoes);
+        console.log('Salvando permissões para o setor:', setor);
+
+        // Coletar os valores dos checkboxes
+        const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type="checkbox"]');
+        const permissoes = {};
+        checkboxes.forEach(checkbox => {
+            permissoes[checkbox.value] = checkbox.checked;
+        });
+
+        // Salvar no Firebase
+        const permissoesRef = doc(db, 'permissoes', setor);
+        await setDoc(permissoesRef, {
+            setor: setor,
+            paginas: permissoes
+        });
+
+        console.log('Permissões salvas com sucesso para o setor:', setor);
         exibirMensagem('Permissões salvas com sucesso!', 'success');
-        
-        // Atualizar o menu para refletir as novas permissões
-        configurarAcessoPorCargo(loggedInUserRole);
+        fecharModalGerenciarPermissoes();
     } catch (error) {
         console.error('Erro ao salvar permissões:', error);
         exibirMensagem('Erro ao salvar permissões. Por favor, tente novamente.', 'error');
     }
 }
+
+// Adicionar a função ao escopo global
+window.salvarPermissoesSetor = salvarPermissoesSetor;
 
 // Função para verificar se o usuário tem permissão para acessar uma página
 async function verificarPermissaoPagina(pagina) {
