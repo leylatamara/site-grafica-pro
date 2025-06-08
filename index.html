@@ -1192,8 +1192,8 @@
     </div>
 
     <script src="scripts.js" type="module"></script>
-    <script>
-        // Importar a função carregarPermissoesSetor
+    <script type="module">
+        // Importar funções necessárias
         import { carregarPermissoesSetor } from './scripts.js';
 
         // Função para calcular a configuração do tema
@@ -1386,8 +1386,11 @@
             fecharModalEspecifico('modalGerenciarPermissoesOverlay');
         }
 
-        // Adicionar a função mostrarSecao ao escopo global
+        // Adicionar as funções ao escopo global
         window.mostrarSecao = mostrarSecao;
+        window.fecharModalGerenciarPermissoes = fecharModalGerenciarPermissoes;
+        window.handleImagemFilePedido = handleImagemFilePedido;
+        window.limparImagemPedido = limparImagemPedido;
     </script>
 </body>
 </html>
