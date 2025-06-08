@@ -18,7 +18,8 @@ import {
     deleteDoc, 
     setDoc,
     updateDoc, 
-    where 
+    where,
+    getDoc 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Configuração do Firebase
@@ -252,59 +253,65 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-async function handleLogin(codigo) {
-    const loginScreen = document.getElementById('loginScreen');
-    const appContainer = document.getElementById('appContainer');
-    const loginErrorMessage = document.getElementById('loginErrorMessage');
-    const codigoAcessoInput = document.getElementById('codigoAcesso');
-    const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
+async function handleLogin(event) {
+    event.preventDefault();
     
-    loginErrorMessage.classList.add('hidden'); 
-    if (!auth.currentUser) { loginErrorMessage.textContent = "Aguardando autenticação. Tente novamente."; loginErrorMessage.classList.remove('hidden'); return; }
-
+    const email = document.getElementById('loginEmail').value;
+    const senha = document.getElementById('loginSenha').value;
+    
     try {
-        const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
-        const q = query(funcionariosRef, where("codigoAcesso", "==", codigo));
+        // Limpar dados antigos do localStorage
+        localStorage.removeItem('loggedInUserRole');
+        localStorage.removeItem('loggedInUserName');
+        
+        const usersRef = collection(db, `artifacts/${shopInstanceAppId}/users`);
+        const q = query(usersRef, where('email', '==', email));
         const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const funcionarioData = querySnapshot.docs[0].data();
-            const funcionarioId = querySnapshot.docs[0].id;
-            loggedInUserRole = funcionarioData.cargo.toLowerCase(); 
-            loggedInUserName = funcionarioData.nome; 
-            loggedInUserIdGlobal = funcionarioId;
-
-            localStorage.setItem('loggedInUserRole', loggedInUserRole);
-            localStorage.setItem('loggedInUserName', loggedInUserName);
-            localStorage.setItem('loggedInUserId', loggedInUserIdGlobal);
-
-            if (loggedInUserNameDisplay) { loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`; }
-            
-            atualizarEstatisticasUsuario();
-
-            document.body.classList.add('app-visible'); 
-            loginScreen.classList.add('hidden'); appContainer.classList.remove('hidden'); codigoAcessoInput.value = ''; 
-            configurarAcessoPorCargo(loggedInUserRole); setActiveMenuLink('telaInicial'); mostrarSecao('telaInicial', false); ajustarPaddingBody();
-        } else {
-            loginErrorMessage.textContent = "Código inválido."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;
+        
+        if (querySnapshot.empty) {
+            exibirMensagem('Usuário não encontrado.', 'error');
+            return;
         }
-    } catch (error) { console.error("Erro login:", error); loginErrorMessage.textContent = "Erro. Tente novamente."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;}
+        
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+        
+        if (userData.senha !== senha) {
+            exibirMensagem('Senha incorreta.', 'error');
+            return;
+        }
+        
+        loggedInUserRole = userData.cargo;
+        loggedInUserName = userData.nome;
+        
+        localStorage.setItem('loggedInUserRole', loggedInUserRole);
+        localStorage.setItem('loggedInUserName', loggedInUserName);
+        
+        console.log('Login bem-sucedido. Cargo:', loggedInUserRole);
+        
+        // Inicializar permissões se for admin
+        if (loggedInUserRole === 'admin') {
+            await inicializarPermissoes();
+        }
+        
+        configurarAcessoPorCargo(loggedInUserRole);
+        mostrarSecao('telaInicial', true);
+        exibirMensagem('Login realizado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro no login:', error);
+        exibirMensagem('Erro ao realizar login. Por favor, tente novamente.', 'error');
+    }
 }
 
 function logout() {
-    loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;
+    loggedInUserRole = null;
+    loggedInUserName = null;
+    loggedInUserIdGlobal = null;
     localStorage.removeItem('loggedInUserRole');
     localStorage.removeItem('loggedInUserName');
     localStorage.removeItem('loggedInUserId');
-
-    const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-     if (loggedInUserNameDisplay) { loggedInUserNameDisplay.textContent = '';}
-    document.body.classList.remove('app-visible');
-    document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('appContainer').classList.add('hidden');
-    document.getElementById('codigoAcesso').value = ''; 
-    const filtroStatusPedidoEl = document.getElementById('filtroStatusPedido');
-    if (filtroStatusPedidoEl) filtroStatusPedidoEl.value = '';
-    document.body.style.paddingTop = '0px'; 
+    mostrarSecao('loginScreen', true);
 }
 
 function atualizarEstatisticasUsuario() {
@@ -387,8 +394,44 @@ function setActiveMenuLink(targetSectionId) {
     });
 }
 
-function mostrarSecao(idSecao, isMenuLink = false) { 
-    if (!loggedInUserRole && idSecao !== 'loginScreen') { logout(); return; }
+async function mostrarSecao(idSecao, isMenuLink = false) { 
+    if (!loggedInUserRole && idSecao !== 'loginScreen') { 
+        console.log('Usuário não está logado, redirecionando para login');
+        logout(); 
+        return; 
+    }
+    
+    console.log('Tentando mostrar seção:', idSecao, 'Cargo do usuário:', loggedInUserRole);
+    
+    // Verificar permissões para seções restritas
+    if (idSecao === 'gerenciarPermissoes') {
+        if (loggedInUserRole !== 'admin') {
+            console.log('Acesso negado à seção de permissões');
+            exibirMensagem('Acesso restrito a administradores.', 'error');
+            return;
+        }
+        
+        const modal = document.getElementById('modalGerenciarPermissoesOverlay');
+        if (!modal) {
+            console.error('Modal de permissões não encontrado');
+            exibirMensagem('Erro ao abrir modal de permissões.', 'error');
+            return;
+        }
+
+        abrirModalEspecifico('modalGerenciarPermissoesOverlay');
+        await carregarPermissoesSetor();
+        return;
+    }
+    
+    // Verificar permissão para outras seções
+    if (idSecao !== 'telaInicial' && idSecao !== 'loginScreen') {
+        const temPermissao = await verificarPermissaoPagina(idSecao);
+        if (!temPermissao) {
+            console.log('Acesso negado à seção:', idSecao);
+            exibirMensagem('Você não tem permissão para acessar esta seção.', 'error');
+            return;
+        }
+    }
     
     document.querySelectorAll('.main-content-section').forEach(secao => {
         secao.classList.add('hidden');
@@ -402,6 +445,7 @@ function mostrarSecao(idSecao, isMenuLink = false) {
         
         activeSectionId = idSecao; 
         document.getElementById('mainContentArea').scrollTop = 0;
+        
         if (isMenuLink) {
             setActiveMenuLink(idSecao);
             const exoMenuEl = document.querySelector('.exo-menu-container .exo-menu');
@@ -412,31 +456,13 @@ function mostrarSecao(idSecao, isMenuLink = false) {
                openDropdown.classList.remove('open');
             });
         }
-    } else { if (loggedInUserRole) mostrarSecao('telaInicial', true); return; }
-
-    if (idSecao === 'novoPedido' && !editingOrderId) {
-        document.getElementById('pedidoDataHora').value = new Date().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'});
-        document.getElementById('formNovoPedido').reset(); 
-        document.getElementById('itensPedidoContainer').innerHTML = ''; document.getElementById('pagamentosContainer').innerHTML = ''; 
-        itemPedidoCount = 0; pagamentoCount = 0; pedidoImagemBase64 = null; 
-        const prevImg = document.getElementById('pedidoImagemPreview'), ph = document.getElementById('pedidoImagemPreviewPlaceholder');
-        if (prevImg && ph) { prevImg.src = "#"; prevImg.classList.add('hidden'); ph.classList.remove('hidden'); }
-        atualizarValorTotalPedido(); 
-        document.querySelector('#formNovoPedido button[type=\'submit\']').innerHTML = '<i class="fas fa-check mr-1.5"></i>Guardar Pedido';
-        document.getElementById('editingOrderIdField').value = ''; 
-    } else if (editingOrderId && activeSectionId !== 'novoPedido') {
-        editingOrderId = null; 
-        document.getElementById('editingOrderIdField').value = '';
-        document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-check mr-1.5"></i>Guardar Pedido';
+    } else { 
+        console.log('Seção não encontrada:', idSecao);
+        if (loggedInUserRole) mostrarSecao('telaInicial', true); 
+        return; 
     }
-    if (idSecao === 'telaInicial') atualizarDashboard(); 
-    if (idSecao === 'cadastrarCliente') { document.getElementById('pesquisaClienteInput').value = ''; renderizarListaClientes(); document.getElementById('detalhesClienteSelecionado').classList.add('hidden'); clienteSelecionadoId = null; }
-    if (idSecao === 'cadastrarFornecedor') document.getElementById('formCadastrarFornecedor').reset();
-    if (idSecao === 'visualizarPedidos') renderizarListaCompletaPedidos();
-    ajustarPaddingBody();
 }
-window.mostrarSecao = mostrarSecao; 
-        
+
 function showNotification(config) {
     const bar = document.getElementById('notificationBar');
     if (!bar) return;
@@ -873,3 +899,111 @@ document.addEventListener('DOMContentLoaded', () => {
         togglePrecoFieldsEditar();
     }
 });
+
+// Função para inicializar as permissões
+async function inicializarPermissoes() {
+    try {
+        // Verificar se já existem permissões para cada setor
+        const setores = ['admin', 'vendedor', 'designer', 'impressor', 'producao'];
+        for (const setor of setores) {
+            const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
+            const permissoesDoc = await getDoc(permissoesRef);
+            
+            if (!permissoesDoc.exists()) {
+                // Definir permissões padrão para cada setor
+                let permissoesPadrao = ['telaInicial'];
+                
+                switch (setor) {
+                    case 'admin':
+                        permissoesPadrao = ['telaInicial', 'novoPedido', 'cadastrarCliente', 'cadastrarProduto', 'cadastrarFuncionario', 'cadastrarFornecedor', 'visualizarPedidos', 'gerenciarPermissoes'];
+                        break;
+                    case 'vendedor':
+                        permissoesPadrao = ['telaInicial', 'novoPedido', 'cadastrarCliente', 'visualizarPedidos'];
+                        break;
+                    case 'designer':
+                        permissoesPadrao = ['telaInicial', 'cadastrarProduto', 'visualizarPedidos'];
+                        break;
+                    case 'impressor':
+                        permissoesPadrao = ['telaInicial', 'visualizarPedidos'];
+                        break;
+                    case 'producao':
+                        permissoesPadrao = ['telaInicial', 'visualizarPedidos'];
+                        break;
+                }
+                
+                await setDoc(permissoesRef, { paginas: permissoesPadrao });
+                console.log('Permissões padrão criadas para o setor:', setor, permissoesPadrao);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao inicializar permissões:', error);
+    }
+}
+
+// Função para carregar as permissões do setor selecionado
+async function carregarPermissoesSetor() {
+    try {
+        const setor = document.getElementById('selectSetorPermissao').value;
+        const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
+        const permissoesDoc = await getDoc(permissoesRef);
+        
+        let permissoes = [];
+        if (permissoesDoc.exists()) {
+            permissoes = permissoesDoc.data().paginas || [];
+        }
+        
+        document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
+            cb.checked = permissoes.includes(cb.value);
+        });
+        
+        console.log('Permissões carregadas para o setor:', setor, permissoes);
+    } catch (error) {
+        console.error('Erro ao carregar permissões:', error);
+        exibirMensagem('Erro ao carregar permissões. Por favor, tente novamente.', 'error');
+    }
+}
+
+// Função para salvar as permissões do setor
+async function salvarPermissoesSetor() {
+    try {
+        const setor = document.getElementById('selectSetorPermissao').value;
+        const permissoes = Array.from(document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]:checked'))
+            .map(cb => cb.value);
+        
+        const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
+        await setDoc(permissoesRef, { paginas: permissoes }, { merge: true });
+        
+        console.log('Permissões salvas para o setor:', setor, permissoes);
+        exibirMensagem('Permissões salvas com sucesso!', 'success');
+        
+        // Atualizar o menu para refletir as novas permissões
+        configurarAcessoPorCargo(loggedInUserRole);
+    } catch (error) {
+        console.error('Erro ao salvar permissões:', error);
+        exibirMensagem('Erro ao salvar permissões. Por favor, tente novamente.', 'error');
+    }
+}
+
+// Função para verificar se o usuário tem permissão para acessar uma página
+async function verificarPermissaoPagina(pagina) {
+    try {
+        if (!loggedInUserRole) return false;
+        if (loggedInUserRole === 'admin') return true;
+        
+        const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, loggedInUserRole);
+        const permissoesDoc = await getDoc(permissoesRef);
+        
+        if (!permissoesDoc.exists()) return false;
+        
+        const permissoes = permissoesDoc.data().paginas || [];
+        return permissoes.includes(pagina);
+    } catch (error) {
+        console.error('Erro ao verificar permissão:', error);
+        return false;
+    }
+}
+
+// Função para fechar o modal de permissões
+function fecharModalGerenciarPermissoes() {
+    fecharModalEspecifico('modalGerenciarPermissoesOverlay');
+}
