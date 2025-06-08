@@ -1153,6 +1153,44 @@
     </div>
     
     <!-- Modal Gerenciar Permissões -->
+    <div id="modalGerenciarPermissoesOverlay" class="modal-overlay interactive-theme-modal hidden">
+        <div class="modal-content-wrapper max-w-lg">
+            <div class="h-2"></div>
+            <div class="p-6 relative">
+                <button type="button" class="universal-modal-close-x no-print absolute top-4 right-4" onclick="fecharModalGerenciarPermissoes()">&times;</button>
+                <h3 class="text-lg font-semibold mb-5">Gerenciar Permissões por Setor</h3>
+                <form id="formGerenciarPermissoes" class="space-y-4">
+                    <div>
+                        <label class="label-text">Selecione o setor:</label>
+                        <select id="selectSetorPermissao" class="input-field">
+                            <option value="admin">Administração</option>
+                            <option value="vendedor">Vendedores</option>
+                            <option value="designer">Designers</option>
+                            <option value="impressor">Impressoras</option>
+                            <option value="producao">Produção</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-text">Permissões de acesso às páginas:</label>
+                        <div class="space-y-2" id="permissoesPaginasContainer">
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="telaInicial">Dashboard</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="novoPedido">Novo Pedido</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="cadastrarCliente">Clientes</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="cadastrarProduto">Produtos</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="cadastrarFuncionario">Funcionários</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="cadastrarFornecedor">Fornecedores</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="visualizarPedidos">Pedidos</label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="fecharModalGerenciarPermissoes()" class="btn btn-secondary">Cancelar</button>
+                        <button type="button" onclick="salvarPermissoesSetor()" class="btn btn-primary">Salvar Permissões</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="scripts.js" type="module"></script>
     <script>
         // Função para calcular a configuração do tema
@@ -1282,6 +1320,44 @@
 
         // Inicializar o estado da imagem
         window.pedidoImagemState.limpar();
+
+        // Função para abrir o modal de permissões
+        function mostrarSecao(idSecao, isMenuLink = false) {
+            if (idSecao === 'gerenciarPermissoes') {
+                document.getElementById('modalGerenciarPermissoesOverlay').classList.remove('hidden');
+                carregarPermissoesSetor();
+                return;
+            }
+            // ... restante da função original ...
+        }
+
+        // Função para fechar o modal
+        function fecharModalGerenciarPermissoes() {
+            document.getElementById('modalGerenciarPermissoesOverlay').classList.add('hidden');
+        }
+
+        // Carregar permissões do setor selecionado
+        function carregarPermissoesSetor() {
+            const setor = document.getElementById('selectSetorPermissao').value;
+            const permissoesSalvas = JSON.parse(localStorage.getItem('permissoesPorSetor') || '{}');
+            const permissoes = permissoesSalvas[setor] || [];
+            document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
+                cb.checked = permissoes.includes(cb.value);
+            });
+        }
+
+        document.getElementById('selectSetorPermissao').addEventListener('change', carregarPermissoesSetor);
+
+        // Salvar permissões do setor
+        function salvarPermissoesSetor() {
+            const setor = document.getElementById('selectSetorPermissao').value;
+            const permissoesSalvas = JSON.parse(localStorage.getItem('permissoesPorSetor') || '{}');
+            const permissoes = Array.from(document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]:checked')).map(cb => cb.value);
+            permissoesSalvas[setor] = permissoes;
+            localStorage.setItem('permissoesPorSetor', JSON.stringify(permissoesSalvas));
+            fecharModalGerenciarPermissoes();
+            alert('Permissões salvas com sucesso!');
+        }
     </script>
 </body>
 </html>
