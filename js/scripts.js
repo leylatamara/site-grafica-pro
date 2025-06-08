@@ -226,7 +226,8 @@ if (pedidoClienteSearchEl) {
             return;
         }
 
-        const resultados = clientesCache.filter(cliente => 
+        const clientes = getClientes();
+        const resultados = clientes.filter(cliente => 
             (cliente.nome?.toLowerCase().includes(termo)) || 
             (cliente.telefone?.includes(termo))
         );

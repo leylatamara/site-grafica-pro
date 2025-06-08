@@ -67,6 +67,9 @@ async function startUserSession(userData) {
         // Inicializa o módulo de clientes primeiro
         initClientes({ ...commonDeps, getPedidosCache: getPedidos });
         
+        // Expor funções globais
+        window.getClientes = getClientes;
+        
         // Inicializa os outros módulos em paralelo
         await Promise.all([
             initFuncionarios(commonDeps),
