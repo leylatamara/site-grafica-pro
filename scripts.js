@@ -608,7 +608,11 @@ window.abrirDetalhesPedidoNovaGuia = (pedido) => {
         console.error('Pedido inválido:', pedido);
         return;
     }
-    const url = `detalhes-pedido.html?id=${pedido.id}`;
+    // Remover o shopInstanceAppId do ID do pedido se estiver presente
+    const pedidoId = pedido.id.replace(shopInstanceAppId + '/', '');
+    console.log('ID do pedido original:', pedido.id);
+    console.log('ID do pedido após limpeza:', pedidoId);
+    const url = `detalhes-pedido.html?id=${pedidoId}`;
     window.open(url, '_blank');
 };
 

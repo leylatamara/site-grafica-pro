@@ -211,18 +211,13 @@
             }).format(valor);
         }
 
-        // Função para validar e corrigir o ID do pedido
+        // Função para validar o ID do pedido
         function validarPedidoId(pedidoId) {
-            console.log('Validando ID do pedido:', pedidoId);
-            
-            // Se o ID contém o shopInstanceAppId, remova-o
+            // Se o ID contiver o shopInstanceAppId, removê-lo
             if (pedidoId.includes(shopInstanceAppId)) {
-                const partes = pedidoId.split('/');
-                const ultimaParte = partes[partes.length - 1];
-                console.log('ID corrigido:', ultimaParte);
-                return ultimaParte;
+                pedidoId = pedidoId.replace(shopInstanceAppId + '/', '');
             }
-            
+            console.log('ID do pedido após validação:', pedidoId);
             return pedidoId;
         }
 
@@ -240,6 +235,10 @@
                 alert('ID do pedido não fornecido');
                 return;
             }
+
+            // Validar o ID do pedido
+            pedidoId = validarPedidoId(pedidoId);
+            console.log('ID do pedido após validação:', pedidoId);
 
             try {
                 // Fazer login anônimo se necessário
@@ -402,6 +401,10 @@
                     return;
                 }
 
+                // Validar o ID do pedido
+                pedidoId = validarPedidoId(pedidoId);
+                console.log('ID do pedido após validação:', pedidoId);
+
                 const pedidoRef = doc(db, 'artifacts', shopInstanceAppId, 'pedidos', pedidoId);
                 console.log('Caminho do pedido:', pedidoRef.path);
                 
@@ -460,6 +463,10 @@
                     alert('Nome do usuário não encontrado');
                     return;
                 }
+
+                // Validar o ID do pedido
+                pedidoId = validarPedidoId(pedidoId);
+                console.log('ID do pedido após validação:', pedidoId);
 
                 const pedidoRef = doc(db, 'artifacts', shopInstanceAppId, 'pedidos', pedidoId);
                 console.log('Caminho do pedido:', pedidoRef.path);
