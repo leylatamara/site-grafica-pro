@@ -7,7 +7,7 @@
 
 // MÓDULOS ESSENCIAIS
 import { initAuth, handleLogin, logout } from './auth.js';
-import { ajustarPaddingBody, setActiveMenuLink, showNotification } from './ui.js';
+import { ajustarPaddingBody, setActiveMenuLink } from './ui.js';
 
 // MÓDULOS DE FUNCIONALIDADE
 import { init as initClientes, getClientes } from './clientes.js';
@@ -15,20 +15,26 @@ import { init as initProdutos, getProdutos } from './produtos.js';
 import { init as initFuncionarios } from './funcionarios.js';
 import { init as initFornecedores } from './fornecedores.js';
 import { init as initPedidos, getPedidos } from './pedidos.js';
+import { init as initPermissoes, getPermissoesParaCargo } from './permissoes.js';
 
 // ESTADO GLOBAL DA APLICAÇÃO
 let loggedInUserRole = null;
 let loggedInUserName = null;
 let loggedInUserIdGlobal = null;
 let activeSectionId = 'telaInicial';
+let permissoesDoCargo = [];
 
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
 
 initAuth({
-    onUserLoggedIn: (userData) => {
+    onUserLoggedIn: async (userData) => {
         loggedInUserRole = userData.role;
         loggedInUserName = userData.name;
         loggedInUserIdGlobal = userData.id;
+
+        // Carrega as permissões ANTES de configurar a UI
+        await initPermissoes();
+        permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
 
         const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
         if (loggedInUserNameDisplay) {
@@ -39,8 +45,16 @@ initAuth({
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('appContainer').classList.remove('hidden');
 
-        configurarAcessoPorCargo(loggedInUserRole);
-        mostrarSecao('telaInicial', true);
+        configurarAcessoPorCargo();
+        
+        // Verifica se o utilizador pode ver a página inicial, caso contrário, redireciona
+        const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
+        if (paginaInicial) {
+            mostrarSecao(paginaInicial, true);
+        } else {
+            // Caso de um cargo sem nenhuma permissão
+            document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
+        }
     },
     onUserLoggedOut: () => {
         document.body.classList.remove('app-visible');
@@ -56,26 +70,18 @@ initAuth({
             getUserId: () => loggedInUserIdGlobal,
             mostrarSecao,
             setActiveMenuLink,
-            atualizarDashboard // Passa a referência da função para que os módulos possam chamá-la
+            atualizarDashboard // Passa a referência da função
         };
         
         // Inicializa todos os módulos de funcionalidade
-        // Os módulos sem dependências de dados podem ser inicializados primeiro
         await Promise.all([
             initFuncionarios(commonDeps),
             initFornecedores(commonDeps),
             initProdutos(commonDeps),
         ]);
         
-        // Módulos que dependem de outros são inicializados depois
         initClientes({ ...commonDeps, getPedidosCache: getPedidos });
-
-        // O módulo de pedidos é o último, pois pode depender de todos os outros
-        initPedidos({
-            ...commonDeps,
-            getClientes,
-            getProdutos
-        });
+        initPedidos({ ...commonDeps, getClientes, getProdutos });
     }
 });
 
@@ -83,8 +89,12 @@ initAuth({
 // --- LÓGICA DE NAVEGAÇÃO E UI ---
 
 function mostrarSecao(idSecao, isMenuLink = false) { 
-    if (!loggedInUserRole && idSecao !== 'loginScreen') {
-        logout();
+    if (!loggedInUserRole) { logout(); return; }
+
+    // Verifica se o cargo atual tem permissão para ver a secção
+    if (!permissoesDoCargo.includes(idSecao)) {
+        console.warn(`Acesso negado à página '${idSecao}' para o cargo '${loggedInUserRole}'.`);
+        // Opcional: mostrar uma mensagem de acesso negado
         return;
     }
     
@@ -105,7 +115,8 @@ function mostrarSecao(idSecao, isMenuLink = false) {
             }
         }
     } else { 
-        if (loggedInUserRole) mostrarSecao('telaInicial', true);
+        const paginaInicial = permissoesDoCargo[0] || 'telaInicial';
+        mostrarSecao(paginaInicial, true);
         return;
     }
 
@@ -114,11 +125,14 @@ function mostrarSecao(idSecao, isMenuLink = false) {
     ajustarPaddingBody();
 }
 
-function configurarAcessoPorCargo(role) {
-    document.querySelectorAll('[data-role-access]').forEach(item => {
-        const acessoPermitido = item.dataset.roleAccess;
-        item.classList.toggle('hidden', !(acessoPermitido === "all" || (role && acessoPermitido.includes(role))));
+function configurarAcessoPorCargo() {
+    // Esconde/Mostra os itens do menu com base nas permissões
+    document.querySelectorAll('.exo-menu [data-section-id]').forEach(item => {
+        const sectionId = item.dataset.sectionId;
+        item.classList.toggle('hidden', !permissoesDoCargo.includes(sectionId));
     });
+
+    // Esconde o dropdown de cadastros se nenhum item filho estiver visível
     const cadastrosDropdown = document.getElementById('dropdownCadastrosMenu');
     if (cadastrosDropdown) {
         const subItensVisiveis = cadastrosDropdown.querySelectorAll('ul.drop-down-ul > li:not(.hidden)');
