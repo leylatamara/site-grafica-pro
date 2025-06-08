@@ -242,18 +242,25 @@ function prepararEdicaoPedido(pObj) {
     if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos.", type: "error" }); return; }
     editingOrderId = pObj.id;
     document.getElementById('editingOrderIdField').value = pObj.id;
-    document.getElementById('formNovoPedido').reset();
+    document.getElementById('formEditarPedido').reset();
     document.getElementById('itensPedidoContainer').innerHTML = '';
     document.getElementById('pagamentosContainer').innerHTML = '';
     itemPedidoCount = 0;
     pagamentoCount = 0;
+    
     ['pedidoDescricaoGeral', 'pedidoClienteSearch', 'pedidoVendedor', 'pedidoStatus'].forEach(id => {
         const key = id.replace('pedido', '').toLowerCase().replace('search', 'Nome');
         document.getElementById(id).value = pObj[key] || '';
     });
+    
     document.getElementById('pedidoClienteId').value = pObj.clienteId || "";
-    const dETS = pObj.dataEntrega && typeof pObj.dataEntrega.seconds === 'number' ? new Timestamp(pObj.dataEntrega.seconds, pObj.dataEntrega.nanoseconds) : null;
+    document.getElementById('pedidoDataHora').value = pObj.dataPedido?.toDate().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}) || '';
+
+    const dETS = pObj.dataEntrega && typeof pObj.dataEntrega.seconds === 'number' 
+        ? new Timestamp(pObj.dataEntrega.seconds, pObj.dataEntrega.nanoseconds) 
+        : null;
     const dE = dETS?.toDate();
+
     if (dE) {
         document.getElementById('pedidoDataEntrega').value = dE.toISOString().split('T')[0];
         document.getElementById('pedidoHoraEntrega').value = dE.toTimeString().split(' ')[0].substring(0, 5);
@@ -261,14 +268,34 @@ function prepararEdicaoPedido(pObj) {
         document.getElementById('pedidoDataEntrega').value = "";
         document.getElementById('pedidoHoraEntrega').value = "";
     }
+
     pedidoImagemBase64 = pObj.imagemPreviewPedidoBase64 || null;
     const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
-    if (pedidoImagemBase64) { pI.src = pedidoImagemBase64; pI.classList.remove('hidden'); pH.classList.add('hidden'); } else { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); }
-    if (pObj.itens && Array.isArray(pObj.itens)) { pObj.itens.forEach(item => window.adicionarItemPedidoForm(item)); }
-    if (pObj.pagamentos && Array.isArray(pObj.pagamentos)) { pObj.pagamentos.forEach(pgto => window.adicionarPagamentoForm(pgto)); }
-    window.atualizarValorTotalPedido();
-    document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-save mr-1.5"></i>Atualizar Pedido';
-    mostrarSecao('novoPedido', true);
+    if (pedidoImagemBase64) {
+        pI.src = pedidoImagemBase64;
+        pI.classList.remove('hidden');
+        pH.classList.add('hidden');
+    } else {
+        pI.src = "#";
+        pI.classList.add('hidden');
+        pH.classList.remove('hidden');
+    }
+
+    if (pObj.itens && Array.isArray(pObj.itens)) {
+        pObj.itens.forEach(item => {
+            adicionarItemPedidoForm(item);
+        });
+    }
+
+    if (pObj.pagamentos && Array.isArray(pObj.pagamentos)) {
+        pObj.pagamentos.forEach(pgto => {
+            adicionarPagamentoForm(pgto);
+        });
+    }
+
+    atualizarValorTotalPedido();
+    mostrarSecao('editarPedido', true);
+    setActiveMenuLink('editarPedido');
 }
 
 function abrirDetalhesPedidoNovaGuia(pedido) {

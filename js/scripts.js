@@ -22,27 +22,26 @@ async function handleFormSubmit(e) {
     const formId = e.target.id;
 
     try {
-        if (formId === 'formNovoPedido') {
-            editingOrderId = document.getElementById('editingOrderIdField').value; 
+        if (formId === 'formNovoPedido' || formId === 'formEditarPedido') {
             const dados = {
                 clienteId: document.getElementById('pedidoClienteId').value,
                 vendedorId: document.getElementById('pedidoVendedor').value,
                 dataEntregaStr: document.getElementById('pedidoDataEntrega').value,
                 horaEntregaStr: document.getElementById('pedidoHoraEntrega').value
-            }; 
+            };
             
             if (!dados.clienteId || !dados.vendedorId || !dados.dataEntregaStr) {
                 exibirMensagem("Cliente, Vendedor e Data de Entrega são obrigatórios.", "warning");
                 return;
-            } 
+            }
             
             let dEFinal = Timestamp.fromDate(new Date(`${dados.dataEntregaStr}T${dados.horaEntregaStr || '00:00:00'}`));
-            const itensForms = document.querySelectorAll('.item-pedido-form'); 
+            const itensForms = document.querySelectorAll('.item-pedido-form');
             
             if (itensForms.length === 0) {
                 exibirMensagem("Adicione pelo menos um item.", "warning");
                 return;
-            } 
+            }
             
             let itensPedido = [], pagamentosPedido = [], formValido = true;
             
@@ -115,18 +114,19 @@ async function handleFormSubmit(e) {
                 pData.numeroPedido = oPD?.numeroPedido || `PED-${Date.now().toString().slice(-6)}`;
                 await setDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, editingOrderId), pData);
                 exibirMensagem('Pedido atualizado!', 'success');
+                mostrarSecao('visualizarPedidos', true);
             } else {
                 pData.dataPedido = Timestamp.now();
                 pData.numeroPedido = `PED-${Date.now().toString().slice(-6)}`;
                 await addDoc(collection(db, `artifacts/${shopInstanceAppId}/pedidos`), pData);
                 exibirMensagem('Pedido guardado!', 'success');
+                mostrarSecao('telaInicial', true);
             }
             
             // Limpa o formulário
-            document.getElementById('formNovoPedido').reset();
+            document.getElementById(formId).reset();
             document.getElementById('editingOrderIdField').value = '';
             editingOrderId = null;
-            document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-check mr-1.5"></i>Guardar Pedido';
             document.getElementById('itensPedidoContainer').innerHTML = '';
             document.getElementById('pagamentosContainer').innerHTML = '';
             document.getElementById('pedidoClienteSearch').value = '';
@@ -142,9 +142,71 @@ async function handleFormSubmit(e) {
             }
             itemPedidoCount = 0;
             atualizarValorTotalPedido();
-            mostrarSecao('telaInicial', true);
         }
     } catch (error) {
         exibirMensagem("Erro ao processar o formulário: " + error.message, "error");
+    }
+} 
+
+function mostrarSecao(idSecao, isMenuLink = false) {
+    const mainContentArea = document.getElementById('mainContentArea');
+    const activeSectionId = mainContentArea.dataset.activeSection;
+    if (activeSectionId === idSecao) return;
+
+    if (idSecao === 'novoPedido' && !editingOrderId) {
+        document.getElementById('pedidoDataHora').value = new Date().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'});
+        document.getElementById('formNovoPedido').reset(); 
+        document.getElementById('itensPedidoContainer').innerHTML = ''; 
+        document.getElementById('pagamentosContainer').innerHTML = ''; 
+        document.getElementById('pedidoClienteSearch').value = '';
+        document.getElementById('pedidoClienteId').value = '';
+        document.getElementById('pedidoClienteResultados').classList.add('hidden');
+        itemPedidoCount = 0; 
+        pagamentoCount = 0; 
+        pedidoImagemBase64 = null; 
+        const prevImg = document.getElementById('pedidoImagemPreview'), ph = document.getElementById('pedidoImagemPreviewPlaceholder');
+        if (prevImg && ph) { prevImg.src = "#"; prevImg.classList.add('hidden'); ph.classList.remove('hidden'); }
+        atualizarValorTotalPedido(); 
+        document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-check mr-1.5"></i>Guardar Pedido';
+        document.getElementById('editingOrderIdField').value = ''; 
+    } else if (editingOrderId && activeSectionId !== 'editarPedido') {
+        editingOrderId = null; 
+        document.getElementById('editingOrderIdField').value = '';
+    }
+
+    if (idSecao === 'telaInicial') atualizarDashboard(); 
+    if (idSecao === 'cadastrarCliente') { 
+        document.getElementById('pesquisaClienteInput').value = ''; 
+        renderizarListaClientes(); 
+        document.getElementById('detalhesClienteSelecionado').classList.add('hidden'); 
+        clienteSelecionadoId = null; 
+    }
+    if (idSecao === 'cadastrarFornecedor') document.getElementById('formCadastrarFornecedor').reset();
+    if (idSecao === 'visualizarPedidos') renderizarListaCompletaPedidos();
+    ajustarPaddingBody();
+} 
+
+function setActiveMenuLink(sectionId) {
+    document.querySelectorAll('.exo-menu li').forEach(li => {
+        const a = li.querySelector('a');
+        if (a) {
+            if (li.dataset.sectionId === sectionId) {
+                li.classList.add('active');
+                a.setAttribute('aria-current', 'page');
+            } else {
+                li.classList.remove('active');
+                a.removeAttribute('aria-current');
+            }
+        }
+    });
+
+    // Mostra/esconde o item de menu de edição
+    const editarPedidoItem = document.querySelector('li[data-section-id="editarPedido"]');
+    if (editarPedidoItem) {
+        if (sectionId === 'editarPedido') {
+            editarPedidoItem.classList.remove('hidden');
+        } else {
+            editarPedidoItem.classList.add('hidden');
+        }
     }
 } 
