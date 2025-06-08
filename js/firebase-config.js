@@ -22,14 +22,13 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// **CORREÇÃO: Simplificação do caminho da base de dados**
-// Todas as coleções estarão dentro de 'grafica-pro-data' para garantir consistência.
-const basePath = `artifacts/grafica-pro-data`;
+// **CORREÇÃO: Restaurada a variável shopInstanceAppId que outros módulos usam.**
+const shopInstanceAppId = 'default-app-id';
 
 export {
     auth,
     db,
-    basePath, // Exporta o caminho base
+    shopInstanceAppId, // Exporta a variável correta
     // Funções de Autenticação
     signInAnonymously,
     onAuthStateChanged,
