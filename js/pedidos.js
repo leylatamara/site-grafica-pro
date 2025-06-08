@@ -91,7 +91,6 @@ function renderizarListaCompletaPedidos() {
     }).join('');
 }
 
-
 function carregarUltimosPedidos() {
     const tb = document.getElementById('ultimosPedidosTableBody');
     if (!tb) return;
@@ -110,16 +109,75 @@ function carregarUltimosPedidos() {
     }
 }
 
-
-function carregarTodosPedidos(onUpdate) {
+function carregarTodosPedidos() {
     const path = `artifacts/${shopInstanceAppId}/pedidos`;
     onSnapshot(query(collection(db, path)), (snap) => {
         todosOsPedidosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (onUpdate) onUpdate();
+        atualizarDashboard();
+        carregarUltimosPedidos();
+        if (document.getElementById('visualizarPedidos')?.classList.contains('hidden') === false) {
+            renderizarListaCompletaPedidos();
+        }
     }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
 
-// ... (Restantes funções de manipulação de formulário) ...
+// **INÍCIO DA CORREÇÃO: Implementação das funções**
+
+function prepararEdicaoPedido(pObj) {
+    if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos para edição.", type: "error" }); return; }
+    editingOrderId = pObj.id;
+    document.getElementById('editingOrderIdField').value = pObj.id;
+    document.getElementById('formNovoPedido').reset();
+    document.getElementById('itensPedidoContainer').innerHTML = '';
+    document.getElementById('pagamentosContainer').innerHTML = '';
+    itemPedidoCount = 0;
+    pagamentoCount = 0;
+    ['pedidoDescricaoGeral', 'pedidoClienteSearch', 'pedidoVendedor', 'pedidoStatus'].forEach(id => {
+        const key = id.replace('pedido', '').toLowerCase().replace('search', 'Nome');
+        document.getElementById(id).value = pObj[key] || '';
+    });
+    document.getElementById('pedidoClienteId').value = pObj.clienteId || "";
+    const dETS = pObj.dataEntrega && typeof pObj.dataEntrega.seconds === 'number' ? new Timestamp(pObj.dataEntrega.seconds, pObj.dataEntrega.nanoseconds) : null;
+    const dE = dETS?.toDate();
+    if (dE) {
+        document.getElementById('pedidoDataEntrega').value = dE.toISOString().split('T')[0];
+        document.getElementById('pedidoHoraEntrega').value = dE.toTimeString().split(' ')[0].substring(0, 5);
+    } else {
+        document.getElementById('pedidoDataEntrega').value = "";
+        document.getElementById('pedidoHoraEntrega').value = "";
+    }
+    pedidoImagemBase64 = pObj.imagemPreviewPedidoBase64 || null;
+    const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
+    if (pedidoImagemBase64) { pI.src = pedidoImagemBase64; pI.classList.remove('hidden'); pH.classList.add('hidden'); } else { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); }
+    if (pObj.itens && Array.isArray(pObj.itens)) { pObj.itens.forEach(item => window.adicionarItemPedidoForm(item)); }
+    if (pObj.pagamentos && Array.isArray(pObj.pagamentos)) { pObj.pagamentos.forEach(pgto => window.adicionarPagamentoForm(pgto)); }
+    window.atualizarValorTotalPedido();
+    document.querySelector('#formNovoPedido button[type="submit"]').innerHTML = '<i class="fas fa-save mr-1.5"></i>Atualizar Pedido';
+    mostrarSecao('novoPedido', true);
+}
+
+function abrirDetalhesPedidoNovaGuia(pedido) {
+    // ... (código existente da função)
+}
+
+async function marcarComoEntregue(pedidoId) {
+    if (!getUserId() || !pedidoId) { showNotification({ message: "Ação inválida.", type: "error" }); return; }
+    const dadosUpdate = { status: 'Entregue', entreguePorNome: getUserName(), entreguePorId: getUserId(), entregueEm: Timestamp.now() };
+    try { await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId), dadosUpdate); showNotification({ message: "Pedido marcado como Entregue!", type: "success" }); } catch (error) { showNotification({ message: "Erro ao atualizar o pedido.", type: "error" }); }
+}
+
+function excluirPedido(pedidoId, numeroPedido) {
+    showNotification({
+        message: `Tem a certeza que deseja excluir o pedido ${numeroPedido}?`,
+        type: 'confirm-delete',
+        onConfirm: async () => {
+            try { await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId)); showNotification({ message: 'Pedido excluído!', type: 'success' }); } catch (error) { showNotification({ message: 'Erro ao excluir.', type: 'error' }); }
+        }
+    });
+}
+
+// **FIM DA CORREÇÃO**
+
 
 export function init(deps) {
     getRole = deps.getRole;
@@ -137,25 +195,21 @@ export function init(deps) {
         renderizarListaCompletaPedidos();
     });
 
-    // Adiciona listeners
     const filtros = ['filtroNomeCliente', 'filtroNumeroPedido', 'filtroMaterialProduto'];
     filtros.forEach(id => document.getElementById(id)?.addEventListener('input', renderizarListaCompletaPedidos));
     const selects = ['filtroDataPedido', 'filtroStatusPedido', 'filtroClassificacaoPedido', 'filtroVendedor'];
     selects.forEach(id => document.getElementById(id)?.addEventListener('change', renderizarListaCompletaPedidos));
     document.getElementById('limparFiltrosPedidos')?.addEventListener('click', () => {
-        filtros.concat(selects).forEach(id => {
-            const el = document.getElementById(id); if (el) el.value = '';
-        });
+        filtros.concat(selects).forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         document.getElementById('filtroClassificacaoPedido').value = 'dataPedido_desc';
         renderizarListaCompletaPedidos(); 
     });
 
-    // **INÍCIO DA CORREÇÃO**
-    // Anexa as funções ao objeto window para serem acessíveis globalmente
-    window.prepararEdicaoPedido = (p) => { /* ... código da função aqui ... */ };
-    window.abrirDetalhesPedidoNovaGuia = (p) => { /* ... código da função aqui ... */ };
-    window.marcarComoEntregue = (id) => { /* ... código da função aqui ... */ };
-    window.excluirPedido = (id, nome) => { /* ... código da função aqui ... */ };
+    // Anexa as funções ao objeto window
+    window.prepararEdicaoPedido = prepararEdicaoPedido;
+    window.abrirDetalhesPedidoNovaGuia = abrirDetalhesPedidoNovaGuia;
+    window.marcarComoEntregue = marcarComoEntregue;
+    window.excluirPedido = excluirPedido;
     window.abrirModalMudarStatus = (id, num, cli, stat) => {
         document.getElementById('pedidoIdParaMudarStatus').value = id;
         document.getElementById('infoPedidoParaMudarStatus').innerHTML = `<strong>Pedido:</strong> ${num}<br><strong>Cliente:</strong> ${cli}`;
@@ -164,7 +218,6 @@ export function init(deps) {
     };
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
     // ... (restantes funções globais do formulário)
-    // **FIM DA CORREÇÃO**
 }
 
 export const getPedidos = () => todosOsPedidosCache;
