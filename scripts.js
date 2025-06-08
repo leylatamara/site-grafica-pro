@@ -1,171 +1,4 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, getDocs, query, limit, onSnapshot, Timestamp, writeBatch, deleteDoc, setDoc, updateDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Configuração do Firebase
-const firebaseConfig = {
-    apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
-    authDomain: "sistema-grafica-pro.firebaseapp.com",
-    projectId: "sistema-grafica-pro",
-    storageBucket: "sistema-grafica-pro.firebasestorage.app",
-    messagingSenderId: "1043193530848",
-    appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// Variáveis de estado globais
-let userId = null, produtosCache = [], pedidoImagemBase64 = null, todosOsPedidosCache = [], clientesCache = [], fornecedoresCache = [], funcionariosCache = [];
-let itemPedidoCount = 0, pagamentoCount = 0, clienteSelecionadoId = null, editingOrderId = null, loggedInUserRole = null, loggedInUserName = null, loggedInUserIdGlobal = null; 
-let notificationTimeout;
-let activeSectionId = 'telaInicial';
-
-// --- Funções Auxiliares ---
-const getElement = (id) => document.getElementById(id);
-const querySel = (selector) => document.querySelector(selector);
-const querySelAll = (selector) => document.querySelectorAll(selector);
-
-// --- Funções de Templates HTML ---
-function populateInitialHTML() {
-    getElement('loginScreen').innerHTML = `
-        <div class="login-card">
-            <img src="https://placehold.co/150x60/0ea5e9/FFFFFF?text=SuaGraficaPRO&font=poppins" alt="Logo Gráfica PRO">
-            <h2 class="login-title">Acesso ao Sistema</h2>
-            <p class="login-subtitle">Insira o seu código de funcionário para continuar.</p>
-            <form id="loginForm">
-                <input type="password" id="codigoAcesso" placeholder="Código de Acesso" required>
-                <button type="submit" class="login-button">Entrar</button>
-            </form>
-            <p id="loginErrorMessage" class="hidden"></p>
-        </div>`;
-    
-    getElement('appContainer').innerHTML = `
-        <header class="exo-menu-container">
-            <div class="header-top-row">
-                <div class="logo-area"><img src="https://placehold.co/120x32/ffffff/1e293b?text=SuaLogo&font=poppins" alt="Logo Gráfica" class="h-6 sm:h-8"></div>
-                <h1 class="site-title text-lg sm:text-xl">Sistema de Gestão PRO</h1>
-                <div class="actions-area"><button id="logoutButton" class="text-xs py-1.5 px-3 rounded"><i class="fas fa-sign-out-alt mr-1.5"></i>Sair</button></div>
-            </div>
-            <div class="user-info-bar">
-                <span id="loggedInUserNameDisplay" class="font-semibold"></span>
-                <div class="user-stats">
-                    <span>Pedidos Mês: <strong id="userPedidosMes">0</strong></span>
-                    <span>Em Finalização: <strong id="userPedidosFinalizacao">0</strong></span>
-                    <span>Finalizados: <strong id="userPedidosFinalizados">0</strong></span>
-                </div>
-            </div>
-            <nav class="menu-bar-wrapper"> 
-                <ul class="exo-menu clearfix">
-                    <li data-role-access="all"><a href="#" data-section="telaInicial"><span class="icon"><i class="fa fa-home"></i></span>Home</a></li>
-                    <li data-role-access="admin,vendedor"><a href="#" data-section="novoPedido"><span class="icon"><i class="fa fa-plus"></i></span>Novo Pedido</a></li>
-                    <li class="drop-down" data-role-access="admin,vendedor,designer,impressor,producao" id="dropdownCadastrosMenu">
-                        <a href="#"><span class="icon"><i class="fa fa-archive"></i></span>Cadastros<span class="arrow">&#9662;</span></a>
-                        <ul class="drop-down-ul">
-                            <li data-role-access="admin,vendedor"><a href="#" data-section="cadastrarCliente"><span class="icon"><i class="fa fa-users"></i></span>Clientes</a></li>
-                            <li data-role-access="admin,designer"><a href="#" data-section="cadastrarProduto"><span class="icon"><i class="fa fa-box"></i></span>Produtos</a></li>
-                            <li data-role-access="admin"><a href="#" data-section="cadastrarFuncionario"><span class="icon"><i class="fa fa-user-tie"></i></span>Funcionários</a></li>
-                            <li data-role-access="admin"><a href="#" data-section="cadastrarFornecedor"><span class="icon"><i class="fa fa-truck"></i></span>Fornecedores</a></li>
-                        </ul>
-                    </li>
-                    <li data-role-access="all"><a href="#" data-section="visualizarPedidos"><span class="icon"><i class="fa fa-list-alt"></i></span>Pedidos</a></li>
-                </ul>
-                <a href="#" class="toggle-menu"><i class="fas fa-bars"></i></a>
-            </nav>
-        </header>
-        <div class="main-layout">
-            <main id="mainContentArea" class="content-area w-full">
-                <section id="telaInicial" class="main-content-section max-w-7xl mx-auto"></section>
-                <section id="novoPedido" class="main-content-section interactive-theme hidden max-w-3xl mx-auto"></section>
-                <section id="cadastrarCliente" class="main-content-section interactive-theme hidden"></section>
-                <section id="cadastrarProduto" class="main-content-section interactive-theme hidden"></section>
-                <section id="cadastrarFuncionario" class="main-content-section interactive-theme hidden"></section>
-                <section id="cadastrarFornecedor" class="main-content-section interactive-theme hidden"></section>
-                <section id="visualizarPedidos" class="main-content-section interactive-theme hidden"></section>
-            </main>
-        </div>
-        <footer class="site-footer"><p>Sistema de Gestão PRO para Gráficas.</p><p><strong>Criado por: Jeffweb3</strong></p></footer>`;
-}
-
-function populateSectionHTML() {
-    getElement('telaInicial').innerHTML = `
-        <div class="dashboard-header"><h1>Painel de Controlo</h1></div>
-        <div class="summary-cards">
-            <div class="metric-card-dashboard card"><div class="card-header"><span class="icon-wrapper-dashboard icon"><i class="fas fa-calendar-day"></i></span><h3 class="metric-label-dashboard card-title">Pedidos Hoje</h3></div><p id="metricPedidosHoje" class="metric-value-dashboard card-value">0</p></div>
-            <div class="metric-card-dashboard card"><div class="card-header"><span class="icon-wrapper-dashboard icon"><i class="fas fa-hourglass-half"></i></span><h3 class="metric-label-dashboard card-title">Pendentes</h3></div><p id="metricPedidosPendentes" class="metric-value-dashboard card-value">0</p></div>
-            <div class="metric-card-dashboard card"><div class="card-header"><span class="icon-wrapper-dashboard icon"><i class="fas fa-dollar-sign"></i></span><h3 class="metric-label-dashboard card-title">Faturamento Mês</h3></div><p id="metricFaturamentoMes" class="metric-value-dashboard card-value currency">R$0,00</p></div>
-            <div class="metric-card-dashboard card"><div class="card-header"><span class="icon-wrapper-dashboard icon"><i class="fas fa-users"></i></span><h3 class="metric-label-dashboard card-title">Total Clientes</h3></div><p id="metricTotalClientes" class="metric-value-dashboard card-value">0</p></div>
-        </div>
-        <div class="material-table-card recent-orders">
-            <div class="material-table-header recent-orders-header"><h2>Últimos Pedidos</h2><button onclick="window.mostrarSecao('visualizarPedidos', true)" class="btn btn-primary btn-view-all text-xs py-2 px-3"><i class="fas fa-list-ul mr-2"></i>Ver Todos</button></div>
-            <div class="material-table-container orders-table-wrapper"><table class="material-data-table orders-table"><thead><tr><th>Nº Pedido</th><th>Cliente</th><th>Data</th><th>Valor</th><th>Estado</th><th>Ações</th></tr></thead><tbody id="ultimosPedidosTableBody"></tbody></table></div>
-        </div>`;
-    
-    getElement('novoPedido').innerHTML = `
-        <h2 class="text-xl font-semibold mb-6 pb-4 border-b">Novo Pedido</h2>
-        <form id="formNovoPedido" class="space-y-6">
-            <input type="hidden" id="editingOrderIdField"> 
-            <div><label for="pedidoDataHora" class="label-text">Data e Hora:</label><input type="text" id="pedidoDataHora" class="input-field" readonly></div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="relative"><label for="pedidoClienteSearch" class="label-text">Cliente:</label><input type="text" id="pedidoClienteSearch" class="input-field" placeholder="Pesquisar cliente..."><input type="hidden" id="pedidoClienteId"><div id="pedidoClienteResultados" class="absolute z-20 w-full border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto hidden"></div><button type="button" class="mt-2 btn btn-link text-xs">Registar novo cliente</button></div>
-                <div><label for="pedidoVendedor" class="label-text">Funcionário (Vendedor):</label><select id="pedidoVendedor" class="input-field"><option value="">Selecione...</option></select></div>
-            </div>
-            <div class="pt-5 border-t"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Itens do Pedido</h3></div><div id="itensPedidoContainer" class="space-y-4"></div><button type="button" id="addItemBtn" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-plus mr-1.5"></i>Adicionar Produto</button></div>
-            <div class="pt-5 border-t space-y-4"><div><label for="pedidoDescricaoGeral" class="label-text">Descrição Geral:</label><textarea id="pedidoDescricaoGeral" rows="2" class="input-field text-lg font-semibold" placeholder="Ex: Kit Adesivos..."></textarea></div><div><label class="label-text">Preview (Opcional):</label><div id="pedidoImageDropArea" class="image-drop-area"><input type="file" accept="image/*" class="hidden" id="pedidoImagemFile"><img src="#" alt="Preview" id="pedidoImagemPreview" class="hidden preview-image"><span id="pedidoImagemPreviewPlaceholder" class="text-sm"><i class="fas fa-image fa-2x mb-1.5"></i><br>Cole ou carregue uma imagem</span></div></div></div>
-            <div class="pt-5 border-t"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Pagamento</h3></div><div id="pagamentosContainer" class="space-y-4"></div><button type="button" id="addPagamentoBtn" class="mt-4 btn btn-outline btn-small text-sm"><i class="fas fa-dollar-sign mr-1.5"></i>Adicionar Pagamento</button><div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end"><div><label class="label-text">Total Pedido:</label><input type="text" id="pedidoValorTotal" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div><div><label class="label-text">Total Pago:</label><input type="text" id="pedidoTotalPago" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div><div><label class="label-text">Restante:</label><input type="text" id="pedidoValorRestante" class="input-field text-lg font-semibold" readonly value="R$ 0,00"></div></div></div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t"><div class="grid grid-cols-2 gap-4"><div><label for="pedidoDataEntrega" class="label-text">Data Entrega:</label><input type="date" id="pedidoDataEntrega" class="input-field"></div><div><label for="pedidoHoraEntrega" class="label-text">Hora Entrega:</label><input type="time" id="pedidoHoraEntrega" class="input-field"></div></div><div><label for="pedidoStatus" class="label-text">Estado:</label><select id="pedidoStatus" class="input-field"><option>Aguardando Aprovação</option><option>Em Produção (Arte)</option><option>Em Produção (Impressão)</option><option>Em Produção (Acabamento)</option><option>Pronto para Retirada</option><option>Em Rota de Entrega</option><option>Entregue</option><option>Cancelado</option></select></div></div>
-            <div class="flex justify-end space-x-3 pt-6 border-t"><button type="button" id="cancelarPedidoBtn" class="btn btn-secondary">Cancelar</button><button type="submit" class="btn btn-primary"><i class="fas fa-check mr-1.5"></i>Guardar Pedido</button></div>
-        </form>`;
-
-    getElement('cadastrarCliente').innerHTML = `
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-1"><h2 class="text-xl font-semibold mb-5">Registar Cliente</h2><form id="formCadastrarCliente" class="space-y-4">...</form></div>
-            <div class="lg:col-span-2 mt-6 lg:mt-0"><h3 class="text-lg font-semibold mb-1">Clientes Registados</h3><div class="relative"><i class="fas fa-search absolute top-1/2 left-3.5 transform -translate-y-1/2 text-gray-400"></i><input type="text" id="pesquisaClienteInput" class="input-field w-full pl-10" placeholder="Pesquisar cliente..."></div><div id="listaClientes" class="space-y-2.5 max-h-[calc(100vh-340px)] overflow-y-auto pr-1 mt-3"></div><div id="detalhesClienteSelecionado" class="mt-6 hidden"><h4 class="text-md font-semibold mb-2 border-t pt-4">Detalhes do Cliente</h4><div id="infoCliente" class="p-3 border rounded-md mb-4 text-sm space-y-1"></div><h4 class="text-md font-semibold mb-2">Pedidos do Cliente</h4><div id="pedidosDoClienteLista" class="space-y-2.5 max-h-48 overflow-y-auto pr-1 border rounded-md p-2"></div></div></div>
-        </div>`;
-    // ... e assim para as outras seções...
-}
-
-function injectModals() {
-    // ... (função buildModal como na resposta anterior)
-}
-
-// --- Funções de Inicialização e Autenticação ---
-// ... (código onAuthStateChanged como na resposta anterior, chamando populateInitialHTML e injectModals)
-
-function setupEventListeners() {
-    document.body.addEventListener('click', (e) => {
-        // Menu de navegação
-        if (e.target.closest('a[data-section]')) {
-            e.preventDefault();
-            mostrarSecao(e.target.closest('a[data-section]').dataset.section, true);
-        }
-        // Botão de toggle do menu mobile
-        if (e.target.closest('.toggle-menu')) {
-            e.preventDefault();
-            querySel('.exo-menu-container .exo-menu').classList.toggle('display');
-            ajustarPaddingBody();
-        }
-    });
-
-    // Forms
-    getElement('loginForm')?.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(getElement('codigoAcesso').value); });
-    getElement('logoutButton')?.addEventListener('click', logout);
-    
-    // Listeners de forms que são populados dinamicamente
-    document.body.addEventListener('submit', (e) => {
-        if (e.target.id === 'formNovoPedido') handleFormSubmit(e, 'pedido');
-        if (e.target.id === 'formCadastrarCliente') handleFormSubmit(e, 'cliente');
-        // ... etc para outros forms
-    });
-}
-
-async function handleLogin(codigo) { /* ... */ }
-function logout() { /* ... */ }
-
-// ... (Resto do código JS, completo, como estava na versão original)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { 
     getAuth, 
     signInAnonymously, 
@@ -188,6 +21,7 @@ import {
     where 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+// Configuração do Firebase
 const firebaseConfig = {
      apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
      authDomain: "sistema-grafica-pro.firebaseapp.com",
@@ -202,11 +36,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+// Variáveis de estado globais
 let userId = null, produtosCache = [], pedidoImagemBase64 = null, todosOsPedidosCache = [], clientesCache = [], fornecedoresCache = [], funcionariosCache = [];
 let itemPedidoCount = 0, pagamentoCount = 0, clienteSelecionadoId = null, editingOrderId = null, loggedInUserRole = null, loggedInUserName = null, loggedInUserIdGlobal = null; 
 let notificationTimeout;
 let activeSectionId = 'telaInicial';
-
 
 async function criarDadosIniciaisSeNaoExistirem() {
     if (!auth.currentUser) { return; }
@@ -302,7 +136,7 @@ async function criarDadosIniciaisSeNaoExistirem() {
                     valorPagoTotalExemplo += (valorTotalPedidoExemplo - valorMetade);
                 } else { pagamentosExemplo.push({ forma: "Pendente", valorPago: 0, observacao: "Restante pendente", dataPagamento: null }); }
             }
-            const novoPedidoExemplo = { clienteId: clienteAleatorio.id, clienteNome: clienteAleatorio.nome, vendedorId: funcionarioAleatorio.id, vendedorNome: funcionarioAleatorio.nome, pagamentos: pagamentosExemplo, dataEntrega: Timestamp.fromDate(dataEntrega), status: statusPossiveis[Math.floor(Math.random() * statusPossiveis.length)], valorTotal: valorTotalPedidoExemplo, itens: itensPedidoExemplo, imagemPreviewPedidoBase64: null, dataPedido: Timestamp.fromDate(dataPedido), numeroPedido: `PED-EX${Date.now().toString().slice(-5) + i}` };
+            const novoPedidoExemplo = { clienteId: clienteAleatorio.id, clienteNome: clienteAleatorio.nome, vendedorId: funcionarioAleatorio.id, vendedorNome: funcionarioAleatorio.nome, pagamentos: pagamentosExemplo, dataEntrega: Timestamp.fromDate(dataEntrega), status: statusPossiveis[Math.floor(Math.random() * statusPossiveis.length)], valorTotal: valorTotalPedidoExemplo, itens: itensPedidoExemplo, imagemPreviewPedidoBase64: null, descricaoGeral: `Pedido de teste ${i+1}`, dataPedido: Timestamp.fromDate(dataPedido), numeroPedido: `PED-EX${Date.now().toString().slice(-5) + i}` };
             batchPedidos.set(doc(collection(db, pedidosPath)), novoPedidoExemplo);
         }
         await batchPedidos.commit();
@@ -382,6 +216,13 @@ onAuthStateChanged(auth, async (user) => {
                 ajustarPaddingBody(); 
             });
         }
+
+        document.getElementById('formCadastrarCliente')?.addEventListener('submit', handleFormSubmit);
+        document.getElementById('formNovoPedido')?.addEventListener('submit', handleFormSubmit);
+        document.getElementById('formCadastrarProduto')?.addEventListener('submit', handleFormSubmit);
+        document.getElementById('formCadastrarFuncionario')?.addEventListener('submit', handleFormSubmit);
+        document.getElementById('formCadastrarFornecedor')?.addEventListener('submit', handleFormSubmit);
+        document.getElementById('formNovoClienteRapido')?.addEventListener('submit', handleFormSubmit);
 
         document.getElementById('formEditarCliente')?.addEventListener('submit', handleSalvarEdicaoCliente);
         document.getElementById('formEditarProduto')?.addEventListener('submit', handleSalvarEdicaoProduto);
@@ -527,7 +368,13 @@ function ajustarPaddingBody() {
 }
 window.addEventListener('resize', ajustarPaddingBody); 
 
-new MutationObserver(ajustarPaddingBody).observe(document.querySelector('.exo-menu-container .exo-menu'), { attributes: true, subtree: true, attributeFilter: ['class', 'style'] });
+// MutationObserver para ajustar o padding quando o menu mobile é aberto/fechado
+const menuObserver = new MutationObserver(ajustarPaddingBody);
+const exoMenu = document.querySelector('.exo-menu-container .exo-menu');
+if (exoMenu) {
+    menuObserver.observe(exoMenu, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] });
+}
+
 
 function setActiveMenuLink(targetSectionId) { 
     document.querySelectorAll('.exo-menu a[data-section]').forEach(link => { 
@@ -589,7 +436,7 @@ function mostrarSecao(idSecao, isMenuLink = false) {
     ajustarPaddingBody();
 }
 window.mostrarSecao = mostrarSecao; 
-
+        
 function showNotification(config) {
     const bar = document.getElementById('notificationBar');
     if (!bar) return;
@@ -624,10 +471,10 @@ function showNotification(config) {
 function hideNotification() {
     document.getElementById('notificationBar')?.classList.remove('visible');
     if (notificationTimeout) clearTimeout(notificationTimeout);
-    setTimeout(ajustarPaddingBody, 400);
+    setTimeout(ajustarPaddingBody, 400); // Adiciona um delay para o ajuste do padding
 }
 window.exibirMensagem = (message, type = 'info', duration = 5000) => { showNotification({ message, type, duration }); }
-
+        
 function abrirModalEspecifico(overlayId) {
     const overlay = document.getElementById(overlayId); if (!overlay) return;
     overlay.classList.remove('hidden');
@@ -766,21 +613,94 @@ window.abrirDetalhesPedidoNovaGuia = (pedido) => {
     else { exibirMensagem("Bloqueador de pop-up impediu a abertura da guia.", "warning"); } 
 }
 
-document.getElementById('formCadastrarCliente')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!auth.currentUser) return; try { await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { nome:document.getElementById('clienteNome').value, tipoCliente:document.getElementById('clienteTipo').value, telefone:document.getElementById('clienteTelefone').value, email:document.getElementById('clienteEmail').value, cpfCnpj:document.getElementById('clienteCpfCnpj').value, endereco:document.getElementById('clienteEndereco').value, criadoEm:Timestamp.now() }); exibirMensagem('Cliente registado!', 'success'); e.target.reset(); } catch (err) { console.error(err); exibirMensagem('Erro ao registar.', 'error'); } });
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+    const formId = e.target.id;
+
+    try {
+        if (formId === 'formNovoPedido') {
+            editingOrderId = document.getElementById('editingOrderIdField').value; 
+            const dados={clienteId:document.getElementById('pedidoClienteId').value,vendedorId:document.getElementById('pedidoVendedor').value,dataEntregaStr:document.getElementById('pedidoDataEntrega').value,horaEntregaStr:document.getElementById('pedidoHoraEntrega').value,}; 
+            if(!dados.clienteId||!dados.vendedorId||!dados.dataEntregaStr){exibirMensagem("Cliente, Vendedor e Data de Entrega são obrigatórios.","warning");return;} 
+            let dEFinal=Timestamp.fromDate(new Date(`${dados.dataEntregaStr}T${dados.horaEntregaStr||'00:00:00'}`));
+            const itensForms=document.querySelectorAll('.item-pedido-form'); if(itensForms.length===0){exibirMensagem("Adicione pelo menos um item.","warning");return;} 
+            let itensPedido=[], pagamentosPedido=[], formValido=true;
+            itensForms.forEach((iF,idx)=>{const cId=iF.id.split('-')[1];const pS=document.getElementById(`itemProduto-${cId}`);if(!pS.value){formValido=false;exibirMensagem(`Selecione um produto para o item ${idx+1}.`,"warning");return;}const q=parseInt(document.getElementById(`itemQuantidade-${cId}`).value);if(q<=0){formValido=false;exibirMensagem(`Quantidade do item ${idx+1} inválida.`,"warning");return;}const o=pS.options[pS.selectedIndex];let pSteps={};try{pSteps=iF.dataset.productionSteps?JSON.parse(iF.dataset.productionSteps):{impressao:{},acabamento:{}};}catch(e){pSteps={impressao:{},acabamento:{}};}itensPedido.push({produtoId:pS.value,produtoNome:o.text,tipoProduto:o.dataset.tipo,quantidade:q,largura:parseFloat(document.getElementById(`itemLargura-${cId}`)?.value)||null,altura:parseFloat(document.getElementById(`itemAltura-${cId}`)?.value)||null,valorItem:parseFloat(document.getElementById(`itemValor-${cId}`).value.replace('R$ ','').replace(',','.')),descricao:document.getElementById(`itemDescricao-${cId}`).value,productionSteps:pSteps});});if(!formValido)return;
+            document.querySelectorAll('.pagamento-form-item').forEach(i=>{const f=i.querySelector('.forma-pagamento').value,v=parseFloat(i.querySelector('.valor-pago').value);if(f&&v>=0||f==="Pendente")pagamentosPedido.push({forma:f,valorPago:v||0,observacao:i.querySelector('.observacao-pagamento').value,dataPagamento:f!=="Pendente"?Timestamp.now():null});});if(pagamentosPedido.length===0){exibirMensagem("Adicione um pagamento.","warning");return;}
+            const pData={clienteId:dados.clienteId,clienteNome:document.getElementById('pedidoClienteSearch').value,vendedorId:dados.vendedorId,vendedorNome:document.getElementById('pedidoVendedor').options[document.getElementById('pedidoVendedor').selectedIndex].text,pagamentos:pagamentosPedido,dataEntrega:dEFinal,status:document.getElementById('pedidoStatus').value,valorTotal:parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.')),itens:itensPedido,imagemPreviewPedidoBase64,descricaoGeral:document.getElementById('pedidoDescricaoGeral').value};
+            if(editingOrderId){const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;await setDoc(doc(db,`artifacts/${shopInstanceAppId}/pedidos`,editingOrderId),pData);exibirMensagem('Pedido atualizado!', 'success');}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,`artifacts/${shopInstanceAppId}/pedidos`),pData);exibirMensagem('Pedido guardado!', 'success');}
+            
+            document.getElementById('formNovoPedido').reset();
+            document.getElementById('editingOrderIdField').value='';
+            editingOrderId=null;
+            document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';
+            document.getElementById('itensPedidoContainer').innerHTML='';
+            document.getElementById('pagamentosContainer').innerHTML='';
+            pagamentoCount=0;
+            pedidoImagemBase64=null;
+            const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');
+            if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}
+            itemPedidoCount=0;
+            atualizarValorTotalPedido();
+            mostrarSecao('telaInicial',true);
+
+        } else if (formId === 'formCadastrarCliente') {
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { nome:document.getElementById('clienteNome').value, tipoCliente:document.getElementById('clienteTipo').value, telefone:document.getElementById('clienteTelefone').value, email:document.getElementById('clienteEmail').value, cpfCnpj:document.getElementById('clienteCpfCnpj').value, endereco:document.getElementById('clienteEndereco').value, criadoEm:Timestamp.now() });
+            exibirMensagem('Cliente registado!', 'success');
+            e.target.reset();
+        } else if (formId === 'formNovoClienteRapido') {
+            const nome=document.getElementById('clienteRapidoNome').value, tel=document.getElementById('clienteRapidoTelefone').value, tipo=document.getElementById('clienteRapidoTipo').value;
+            if (!nome.trim()) { exibirMensagem("Nome é obrigatório.", "warning"); return; }
+            const ref = await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { nome, telefone:tel, tipoCliente:tipo, criadoEm:Timestamp.now() });
+            exibirMensagem('Cliente registado!', 'success');
+            fecharModalNovoClienteRapido();
+            document.getElementById('pedidoClienteSearch').value = nome;
+            document.getElementById('pedidoClienteId').value = ref.id;
+            document.getElementById('pedidoClienteResultados').classList.add('hidden');
+        } else if (formId === 'formCadastrarProduto') {
+            const dados={nome:document.getElementById('produtoNome').value,tipoPreco:document.getElementById('produtoTipoPreco').value,precoUnidade:parseFloat(document.getElementById('produtoPrecoUnidade').value)||0,precoMetro:parseFloat(document.getElementById('produtoPrecoMetro').value)||0,descricao:document.getElementById('produtoDescricao').value,criadoEm:Timestamp.now()};
+            if(!dados.nome.trim()){exibirMensagem("Nome do produto é obrigatório.","warning");return;}
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/produtos`), dados);
+            exibirMensagem('Produto registado!', 'success');
+            e.target.reset();
+            togglePrecoFields();
+        } else if (formId === 'formCadastrarFuncionario') {
+            const dados={nome:document.getElementById('funcionarioNome').value,contato:document.getElementById('funcionarioContato').value,cargo:document.getElementById('funcionarioCargo').value,codigoAcesso:document.getElementById('funcionarioCodigoAcesso').value,criadoEm:Timestamp.now()};
+            if(!dados.nome||!dados.cargo||!dados.codigoAcesso){exibirMensagem("Preencha todos os campos.","warning");return;}
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`), dados);
+            exibirMensagem('Funcionário registado!', 'success');
+            e.target.reset();
+        } else if (formId === 'formCadastrarFornecedor') {
+            const dados={nome:document.getElementById('fornecedorNome').value,contato:document.getElementById('fornecedorContato').value,tipoMaterial:document.getElementById('fornecedorMaterial').value,criadoEm:Timestamp.now()};
+            if(!dados.nome.trim()){exibirMensagem("Nome do fornecedor é obrigatório.","warning");return;}
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/fornecedores`), dados);
+            exibirMensagem('Fornecedor registado!', 'success');
+            e.target.reset();
+        }
+    } catch(err) {
+        console.error("Erro ao submeter formulário:", err);
+        exibirMensagem('Erro ao processar.','error');
+    }
+}
+
+
 function renderizarListaClientes() { const listaEl = document.getElementById('listaClientes'); const termo = document.getElementById('pesquisaClienteInput')?.value.toLowerCase() || ''; if (!listaEl) return; const filtrados = clientesCache.filter(c => (c.nome?.toLowerCase().includes(termo)) || (c.telefone?.includes(termo)) || (c.email?.toLowerCase().includes(termo))); listaEl.innerHTML = ''; if (filtrados.length === 0) { listaEl.innerHTML = `<p class="text-sm text-center py-3">${termo?'Nenhum cliente encontrado.':'Nenhum cliente registado.'}</p>`; document.getElementById('detalhesClienteSelecionado').classList.add('hidden'); clienteSelecionadoId = null; return; } filtrados.forEach(c => { const itemDiv = document.createElement('div'); itemDiv.className=`item-list-display !cursor-pointer relative flex justify-between items-center ${c.id === clienteSelecionadoId ? 'selected' : ''}`; itemDiv.addEventListener('click', () => exibirDetalhesClienteEProcurarPedidos(c.id)); const infoDiv = document.createElement('div'); infoDiv.innerHTML = `<strong>${c.nome}</strong> <span class="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full align-middle">${c.tipoCliente==='revenda'?'Revenda':'Final'}</span><div class="meta">${c.telefone||'S/ Telefone'}</div>`; itemDiv.appendChild(infoDiv); if (loggedInUserRole === 'admin') { const adminButtons = document.createElement('div'); adminButtons.className = 'flex items-center space-x-1'; adminButtons.innerHTML = `<button class="btn-icon-action" title="Editar Cliente"><i class="fas fa-edit"></i></button><button class="btn-icon-action text-red-400 hover:text-red-600" title="Excluir Cliente"><i class="fas fa-trash"></i></button>`; adminButtons.querySelector('button:first-child').addEventListener('click', (e) => { e.stopPropagation(); abrirModalEditarCliente(c.id); }); adminButtons.querySelector('button:last-child').addEventListener('click', (e) => { e.stopPropagation(); excluirCliente(c.id, c.nome); }); itemDiv.appendChild(adminButtons); } listaEl.appendChild(itemDiv); }); }
 function exibirDetalhesClienteEProcurarPedidos(id) { clienteSelecionadoId = id; renderizarListaClientes(); const cli = clientesCache.find(c => c.id === id); const detalhesEl = document.getElementById('detalhesClienteSelecionado'), infoEl = document.getElementById('infoCliente'), pedidosEl = document.getElementById('pedidosDoClienteLista'); if (!cli||!detalhesEl) return; infoEl.innerHTML = `<p><strong>Nome:</strong> ${cli.nome||'N/A'}</p><p><strong>Tel:</strong> ${cli.telefone||'N/A'}</p><p><strong>Email:</strong> ${cli.email||'N/A'}</p><p><strong>Tipo:</strong> ${cli.tipoCliente==='revenda'?'Revenda':'Final'}</p>${cli.cpfCnpj?`<p><strong>CPF/CNPJ:</strong> ${cli.cpfCnpj}</p>`:''}${cli.endereco?`<p><strong>Endereço:</strong> ${cli.endereco}</p>`:''}`; detalhesEl.classList.remove('hidden'); pedidosEl.innerHTML = '<p class="text-xs text-center py-2">A carregar...</p>'; const pFiltrados = todosOsPedidosCache.filter(p => p.clienteId === id).sort((a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0)); if (pFiltrados.length === 0) { pedidosEl.innerHTML = '<p class="text-xs text-center py-2">Nenhum pedido para este cliente.</p>'; return; } pedidosEl.innerHTML = pFiltrados.map(p => `<div class='p-2.5 border-b text-xs last:border-b-0'><div class="flex justify-between items-center"><span class="font-medium">${p.numeroPedido}</span><span class="text-opacity-80">${p.dataPedido?.toDate().toLocaleDateString('pt-BR')||'N/A'}</span></div><div class="flex justify-between items-center mt-1"><span>R$ ${p.valorTotal.toFixed(2).replace('.',',')}</span>${getStatusBadgeSimpleHTML(p)}</div><button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(p))}')))" class="btn btn-link text-xs p-0 mt-1">Ver detalhes</button></div>`).join(''); }
 function carregarClientes() { if (!auth.currentUser) return; onSnapshot(query(collection(db, `artifacts/${shopInstanceAppId}/clientes`)), (snap) => { clientesCache = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.nome||"").localeCompare(b.nome||"")); if (activeSectionId === 'cadastrarCliente') renderizarListaClientes(); if (activeSectionId === 'telaInicial') atualizarDashboard(); }, e => { console.error("Erro clientes:", e); exibirMensagem("Erro ao carregar clientes.", "error"); }); }
-document.getElementById('formNovoClienteRapido')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!auth.currentUser) return; const nome=document.getElementById('clienteRapidoNome').value, tel=document.getElementById('clienteRapidoTelefone').value, tipo=document.getElementById('clienteRapidoTipo').value; if (!nome.trim()) { exibirMensagem("Nome é obrigatório.", "warning"); return; } try { const ref = await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), { nome, telefone:tel, tipoCliente:tipo, criadoEm:Timestamp.now() }); exibirMensagem('Cliente registado!', 'success'); fecharModalNovoClienteRapido(); document.getElementById('pedidoClienteSearch').value = nome; document.getElementById('pedidoClienteId').value = ref.id; document.getElementById('pedidoClienteResultados').classList.add('hidden'); } catch (err) { console.error(err); exibirMensagem('Erro ao registar.', 'error'); } });
+
 const pedidoClienteSearchEl = document.getElementById('pedidoClienteSearch'), pedidoClienteResultadosEl = document.getElementById('pedidoClienteResultados'), pedidoClienteIdEl = document.getElementById('pedidoClienteId'); if (pedidoClienteSearchEl) { pedidoClienteSearchEl.addEventListener('input', () => { const t=pedidoClienteSearchEl.value.toLowerCase(); pedidoClienteResultadosEl.innerHTML=''; if(t.length<2){pedidoClienteResultadosEl.classList.add('hidden');pedidoClienteIdEl.value='';return;} const res=clientesCache.filter(c=>(c.nome?.toLowerCase().includes(t))||(c.telefone?.includes(t))); pedidoClienteResultadosEl.classList.remove('hidden'); if(res.length>0){pedidoClienteResultadosEl.innerHTML = res.map(cli => `<div data-id="${cli.id}" data-nome="${cli.nome}">${cli.nome} ${cli.telefone?'- '+cli.telefone:''}</div>`).join('');}else{pedidoClienteResultadosEl.innerHTML='<div>Nenhum cliente encontrado.</div>'; pedidoClienteIdEl.value='';} }); pedidoClienteResultadosEl.addEventListener('click', (e) => { if(e.target.dataset.id){ pedidoClienteSearchEl.value = e.target.dataset.nome; pedidoClienteIdEl.value = e.target.dataset.id; pedidoClienteResultadosEl.classList.add('hidden'); } }); document.addEventListener('click', (ev) => { if (!pedidoClienteSearchEl.contains(ev.target)&&!pedidoClienteResultadosEl.contains(ev.target)) pedidoClienteResultadosEl.classList.add('hidden'); }); }
 
-window.togglePrecoFields=()=>{const t=document.getElementById('produtoTipoPreco')?.value; document.getElementById('precoUnidadeFields').classList.toggle('hidden',t==='metro');document.getElementById('precoMetroFields').classList.toggle('hidden',t==='unidade');};
-document.getElementById('formCadastrarProduto')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!auth.currentUser) return; const dados={nome:document.getElementById('produtoNome').value,tipoPreco:document.getElementById('produtoTipoPreco').value,precoUnidade:parseFloat(document.getElementById('produtoPrecoUnidade').value)||0,precoMetro:parseFloat(document.getElementById('produtoPrecoMetro').value)||0,descricao:document.getElementById('produtoDescricao').value,criadoEm:Timestamp.now()}; if(!dados.nome.trim()){exibirMensagem("Nome do produto é obrigatório.","warning");return;} try { await addDoc(collection(db, `artifacts/${shopInstanceAppId}/produtos`), dados); exibirMensagem('Produto registado!', 'success'); e.target.reset(); togglePrecoFields(); } catch (err) { console.error(err); exibirMensagem('Erro ao registar.', 'error'); } });
+window.togglePrecoFields=()=>{
+    const tipoPreco = document.getElementById('produtoTipoPreco')?.value;
+    document.getElementById('precoUnidadeFields').classList.toggle('hidden', tipoPreco === 'metro');
+    document.getElementById('precoMetroFields').classList.toggle('hidden', tipoPreco === 'unidade');
+};
+
 function carregarProdutos() { if (!auth.currentUser) return; onSnapshot(query(collection(db, `artifacts/${shopInstanceAppId}/produtos`)), (snap) => { const listaEl=document.getElementById('listaProdutos'); produtosCache = snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")); if(listaEl) { listaEl.innerHTML = ''; if (produtosCache.length > 0) { produtosCache.forEach(p => { const itemDiv = document.createElement('div'); itemDiv.className = 'item-list-display !cursor-default flex justify-between items-center'; const infoDiv = document.createElement('div'); infoDiv.innerHTML = `<strong>${p.nome}</strong><div class="meta">${p.tipoPreco==='metro'?`R$ ${(p.precoMetro||0).toFixed(2).replace('.',',')}/m²`:`R$ ${(p.precoUnidade||0).toFixed(2).replace('.',',')}/un`}</div>`; itemDiv.appendChild(infoDiv); if (loggedInUserRole === 'admin') { const adminBtns = document.createElement('div'); adminBtns.className = 'flex items-center space-x-1'; adminBtns.innerHTML = `<button class="btn-icon-action" title="Editar"><i class="fas fa-edit"></i></button><button class="btn-icon-action text-red-400 hover:text-red-600" title="Excluir"><i class="fas fa-trash"></i></button>`; adminBtns.querySelector('button:first-child').addEventListener('click', () => abrirModalEditarProduto(p.id)); adminBtns.querySelector('button:last-child').addEventListener('click', () => excluirProduto(p.id, p.nome)); itemDiv.appendChild(adminBtns); } listaEl.appendChild(itemDiv); }); } else { listaEl.innerHTML = '<p class="text-sm text-center py-3">Nenhum produto registado.</p>'; } } document.querySelectorAll('.produto-select').forEach(s=>popularSelectProduto(s)); }, e => { console.error("Erro produtos:", e); exibirMensagem("Erro ao carregar produtos.", "error"); }); }
 
-document.getElementById('formCadastrarFuncionario')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!auth.currentUser) return; const dados={nome:document.getElementById('funcionarioNome').value,contato:document.getElementById('funcionarioContato').value,cargo:document.getElementById('funcionarioCargo').value,codigoAcesso:document.getElementById('funcionarioCodigoAcesso').value,criadoEm:Timestamp.now()}; if(!dados.nome||!dados.cargo||!dados.codigoAcesso){exibirMensagem("Preencha todos os campos.","warning");return;} try { await addDoc(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`), dados); exibirMensagem('Funcionário registado!', 'success'); e.target.reset(); } catch (err) { console.error(err); exibirMensagem('Erro ao registar.', 'error'); } });
 function carregarFuncionarios() { if (!auth.currentUser) return; onSnapshot(query(collection(db, `artifacts/${shopInstanceAppId}/funcionarios`)), (snap)=>{ const selPV=document.getElementById('pedidoVendedor'), listaEl=document.getElementById('listaFuncionarios'), selFiltro=document.getElementById('filtroVendedor'); if(selPV)selPV.innerHTML='<option value="">Selecione funcionário</option>'; if(selFiltro)selFiltro.innerHTML='<option value="">Todos Funcionários</option>'; funcionariosCache = snap.docs.map(doc => ({id:doc.id,...doc.data()})).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")); if(listaEl) { listaEl.innerHTML = ''; if (funcionariosCache.length > 0) { funcionariosCache.forEach(f => { const itemDiv = document.createElement('div'); itemDiv.className = 'item-list-display !cursor-default flex justify-between items-center'; const infoDiv = document.createElement('div'); infoDiv.innerHTML = `<strong>${f.nome}</strong><span class="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full align-middle ml-1">${f.cargo||'N/A'}</span><div class="meta">Contacto: ${f.contato||'N/A'}</div>`; itemDiv.appendChild(infoDiv); if (loggedInUserRole === 'admin') { const adminBtns = document.createElement('div'); adminBtns.className = 'flex items-center space-x-1'; adminBtns.innerHTML = `<button class="btn-icon-action" title="Editar"><i class="fas fa-user-edit"></i></button><button class="btn-icon-action text-red-400 hover:text-red-600" title="Excluir"><i class="fas fa-user-times"></i></button>`; adminBtns.querySelector('button:first-child').addEventListener('click', () => abrirModalEditarFuncionario(f.id)); adminBtns.querySelector('button:last-child').addEventListener('click', () => excluirFuncionario(f.id, f.nome)); itemDiv.appendChild(adminBtns); } listaEl.appendChild(itemDiv); }); } else { listaEl.innerHTML = '<p class="text-sm text-center py-3">Nenhum funcionário registado.</p>'; } } funcionariosCache.forEach(f => { if(selPV) selPV.innerHTML += `<option value="${f.id}">${f.nome}</option>`; if(selFiltro) selFiltro.innerHTML += `<option value="${f.id}">${f.nome}</option>`; }); }, e => { console.error("Erro funcionários:", e); exibirMensagem("Erro ao carregar funcionários.", "error"); }); }
 
-document.getElementById('formCadastrarFornecedor')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!auth.currentUser) return; const dados={nome:document.getElementById('fornecedorNome').value,contato:document.getElementById('fornecedorContato').value,tipoMaterial:document.getElementById('fornecedorMaterial').value,criadoEm:Timestamp.now()}; if(!dados.nome.trim()){exibirMensagem("Nome do fornecedor é obrigatório.","warning");return;} try { await addDoc(collection(db, `artifacts/${shopInstanceAppId}/fornecedores`), dados); exibirMensagem('Fornecedor registado!', 'success'); e.target.reset(); } catch (err) { console.error(err); exibirMensagem('Erro ao registar.', 'error'); } });
 function carregarFornecedores() { if (!auth.currentUser) return; onSnapshot(query(collection(db, `artifacts/${shopInstanceAppId}/fornecedores`)), (snap)=>{ const listaEl = document.getElementById('listaFornecedores'); fornecedoresCache=snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")); if(listaEl) { listaEl.innerHTML = ''; if (fornecedoresCache.length > 0) { fornecedoresCache.forEach(f => { const itemDiv = document.createElement('div'); itemDiv.className = 'item-list-display !cursor-default flex justify-between items-center'; const infoDiv = document.createElement('div'); const cDisplay = f.contato?.includes('@') ? `<a href="mailto:${f.contato}" class="text-sky-400 hover:underline">${f.contato}</a>` : (f.contato || 'N/A'); infoDiv.innerHTML = `<strong>${f.nome}</strong><div class="meta">Contacto: ${cDisplay}</div><div class="meta">Material: ${f.tipoMaterial||'N/A'}</div>`; itemDiv.appendChild(infoDiv); if (loggedInUserRole === 'admin') { const adminBtns = document.createElement('div'); adminBtns.className = 'flex items-center space-x-1'; adminBtns.innerHTML = `<button class="btn-icon-action" title="Editar"><i class="fas fa-edit"></i></button><button class="btn-icon-action text-red-400 hover:text-red-600" title="Excluir"><i class="fas fa-trash"></i></button>`; adminBtns.querySelector('button:first-child').addEventListener('click', () => abrirModalEditarFornecedor(f.id)); adminBtns.querySelector('button:last-child').addEventListener('click', () => excluirFornecedor(f.id, f.nome)); itemDiv.appendChild(adminBtns); } listaEl.appendChild(itemDiv); }); } else { listaEl.innerHTML = '<p class="text-sm text-center py-3">Nenhum fornecedor registado.</p>'; } } }, e => { console.error("Erro fornecedores:", e); exibirMensagem("Erro ao carregar fornecedores.", "error"); }); }
 
 async function processImageFilePedido(file) {
@@ -816,19 +736,6 @@ function atualizarValorTotalPedido(){let tI=0;document.querySelectorAll('.valor-
 window.adicionarPagamentoForm=()=>{pagamentoCount++;const c=document.getElementById('pagamentosContainer');const d=document.createElement('div');d.className='grid grid-cols-1 sm:grid-cols-[2fr,1fr,auto] gap-3 items-end p-3 border rounded-lg pagamento-form-item';d.id=`pagamentoItem-${pagamentoCount}`;d.innerHTML=`<div><label class="label-text text-xs">Forma:</label><select class="input-field input-field-sm py-1.5 forma-pagamento"><option value="Dinheiro">Dinheiro</option><option value="Cartão de Crédito">Crédito</option><option value="Cartão de Débito">Débito</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Pendente">Pendente</option></select></div><div><label class="label-text text-xs">Valor (R$):</label><input type="number" step="0.01" class="input-field input-field-sm py-1.5 valor-pago" placeholder="0,00" oninput="window.calcularTotaisPagamento()"></div><button type="button" onclick="removerPagamentoForm(${pagamentoCount})" class="btn btn-danger btn-small text-xs py-1.5 px-2 h-8"><i class="fas fa-trash"></i></button><div class="sm:col-span-3"><label class="label-text text-xs">Obs:</label><input type="text" class="input-field input-field-sm py-1.5 observacao-pagamento" placeholder="Ex: Entrada..."></div>`;c.appendChild(d);calcularTotaisPagamento();}
 
 window.calcularTotaisPagamento=()=>{let tP=0;document.querySelectorAll('.pagamento-form-item .valor-pago').forEach(i=>{tP+=parseFloat(i.value)||0;});document.getElementById('pedidoTotalPago').value=`R$ ${tP.toFixed(2).replace('.',',')}`;const vT=parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.'))||0;document.getElementById('pedidoValorRestante').value=`R$ ${(vT-tP).toFixed(2).replace('.',',')}`;};
-document.getElementById('formNovoPedido')?.addEventListener('submit', async (e) => { 
-    e.preventDefault(); if (!auth.currentUser) return; 
-    editingOrderId = document.getElementById('editingOrderIdField').value; 
-    const dados={clienteId:document.getElementById('pedidoClienteId').value,vendedorId:document.getElementById('pedidoVendedor').value,dataEntregaStr:document.getElementById('pedidoDataEntrega').value,horaEntregaStr:document.getElementById('pedidoHoraEntrega').value,}; 
-    if(!dados.clienteId||!dados.vendedorId||!dados.dataEntregaStr){exibirMensagem("Cliente, Vendedor e Data de Entrega são obrigatórios.","warning");return;} 
-    let dEFinal=Timestamp.fromDate(new Date(`${dados.dataEntregaStr}T${dados.horaEntregaStr||'00:00:00'}`));
-    const itensForms=document.querySelectorAll('.item-pedido-form'); if(itensForms.length===0){exibirMensagem("Adicione pelo menos um item.","warning");return;} 
-    let itensPedido=[], pagamentosPedido=[], formValido=true;
-    itensForms.forEach((iF,idx)=>{const cId=iF.id.split('-')[1];const pS=document.getElementById(`itemProduto-${cId}`);if(!pS.value){formValido=false;exibirMensagem(`Selecione um produto para o item ${idx+1}.`,"warning");return;}const q=parseInt(document.getElementById(`itemQuantidade-${cId}`).value);if(q<=0){formValido=false;exibirMensagem(`Quantidade do item ${idx+1} inválida.`,"warning");return;}const o=pS.options[pS.selectedIndex];let pSteps={};try{pSteps=iF.dataset.productionSteps?JSON.parse(iF.dataset.productionSteps):{impressao:{},acabamento:{}};}catch(e){pSteps={impressao:{},acabamento:{}};}itensPedido.push({produtoId:pS.value,produtoNome:o.text,tipoProduto:o.dataset.tipo,quantidade:q,largura:parseFloat(document.getElementById(`itemLargura-${cId}`)?.value)||null,altura:parseFloat(document.getElementById(`itemAltura-${cId}`)?.value)||null,valorItem:parseFloat(document.getElementById(`itemValor-${cId}`).value.replace('R$ ','').replace(',','.')),descricao:document.getElementById(`itemDescricao-${cId}`).value,productionSteps:pSteps});});if(!formValido)return;
-    document.querySelectorAll('.pagamento-form-item').forEach(i=>{const f=i.querySelector('.forma-pagamento').value,v=parseFloat(i.querySelector('.valor-pago').value);if(f&&v>=0||f==="Pendente")pagamentosPedido.push({forma:f,valorPago:v||0,observacao:i.querySelector('.observacao-pagamento').value,dataPagamento:f!=="Pendente"?Timestamp.now():null});});if(pagamentosPedido.length===0){exibirMensagem("Adicione um pagamento.","warning");return;}
-    const pData={clienteId:dados.clienteId,clienteNome:document.getElementById('pedidoClienteSearch').value,vendedorId:dados.vendedorId,vendedorNome:document.getElementById('pedidoVendedor').options[document.getElementById('pedidoVendedor').selectedIndex].text,pagamentos:pagamentosPedido,dataEntrega:dEFinal,status:document.getElementById('pedidoStatus').value,valorTotal:parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.')),itens:itensPedido,imagemPreviewPedidoBase64,descricaoGeral:document.getElementById('pedidoDescricaoGeral').value};
-    try{if(editingOrderId){const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;await setDoc(doc(db,`artifacts/${shopInstanceAppId}/pedidos`,editingOrderId),pData);exibirMensagem('Pedido atualizado!', 'success');}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,`artifacts/${shopInstanceAppId}/pedidos`),pData);exibirMensagem('Pedido guardado!', 'success');}document.getElementById('formNovoPedido').reset();document.getElementById('editingOrderIdField').value='';editingOrderId=null;document.querySelector('#formNovoPedido button[type="submit"]').innerHTML='<i class="fas fa-check mr-1.5"></i>Guardar Pedido';document.getElementById('itensPedidoContainer').innerHTML='';document.getElementById('pagamentosContainer').innerHTML='';pagamentoCount=0;pedidoImagemBase64=null;const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}itemPedidoCount=0;atualizarValorTotalPedido();mostrarSecao('telaInicial',true);}catch(err){console.error(err);exibirMensagem('Erro ao processar pedido.','error');} 
-});
 
 function getStatusBadgeSimpleHTML(pedido) { const s=pedido.status;let c='neutral';if(s==='Entregue')c='success';else if(s==='Cancelado')c='danger';else if(s==='Pronto para Retirada')c='primary';else if(s?.startsWith('Em Produção')||s==='Em Rota de Entrega')c='info';else if(s==='Aguardando Aprovação')c='warning';return `<button type="button" class="status-badge-simple interactive-button ${c}" onclick="abrirModalMudarStatus('${pedido.id}','${(pedido.numeroPedido||'').replace(/'/g,"\\'")}', '${(pedido.clienteNome||'').replace(/'/g,"\\'")}', '${(s||'').replace(/'/g,"\\'")}')" title="Alterar estado">${s}</button>`; }
 function renderizarListaCompletaPedidos() { const tbody = document.getElementById('listaTodosPedidos'); if (!tbody) return; let pF=[...todosOsPedidosCache]; const f={nC:document.getElementById('filtroNomeCliente')?.value.toLowerCase(),nP:document.getElementById('filtroNumeroPedido')?.value.toLowerCase(),dP:document.getElementById('filtroDataPedido')?.value,mP:document.getElementById('filtroMaterialProduto')?.value.toLowerCase(),sP:document.getElementById('filtroStatusPedido')?.value,c:document.getElementById('filtroClassificacaoPedido')?.value,vI:document.getElementById('filtroVendedor')?.value}; if(f.nC)pF=pF.filter(p=>p.clienteNome?.toLowerCase().includes(f.nC));if(f.nP)pF=pF.filter(p=>p.numeroPedido?.toLowerCase().includes(f.nP));if(f.dP){const dFil=new Date(f.dP+"T00:00:00");pF=pF.filter(p=>{const dP=p.dataPedido?.toDate();return dP&&dP.getFullYear()===dFil.getFullYear()&&dP.getMonth()===dFil.getMonth()&&dP.getDate()===dFil.getDate();});}if(f.mP)pF=pF.filter(p=>p.itens?.some(i=>i.produtoNome?.toLowerCase().includes(f.mP)));if(f.sP)pF=pF.filter(p=>p.status===f.sP);if(f.vI)pF=pF.filter(p=>p.vendedorId===f.vI);const sF={'dataPedido_desc':(a,b)=>(b.dataPedido?.toMillis()||0)-(a.dataPedido?.toMillis()||0),'dataPedido_asc':(a,b)=>(a.dataPedido?.toMillis()||0)-(b.dataPedido?.toMillis()||0),'dataEntrega_asc':(a,b)=>(a.dataEntrega?.toMillis()||0)-(b.dataEntrega?.toMillis()||0),'dataEntrega_desc':(a,b)=>(b.dataEntrega?.toMillis()||0)-(a.dataEntrega?.toMillis()||0),'clienteNome_asc':(a,b)=>(a.clienteNome||"").localeCompare(b.clienteNome||""),'clienteNome_desc':(a,b)=>(b.clienteNome||"").localeCompare(a.clienteNome||""),'numeroPedido_asc':(a,b)=>(a.numeroPedido||"").localeCompare(b.numeroPedido||"",undefined,{numeric:true}),'numeroPedido_desc':(a,b)=>(b.numeroPedido||"").localeCompare(a.numeroPedido||"",undefined,{numeric:true})};pF.sort(sF[f.c]||sF['dataPedido_desc']); if(pF.length===0){tbody.innerHTML='<tr><td colspan="7" class="text-center py-10">Nenhum pedido encontrado.</td></tr>'; return;} tbody.innerHTML = pF.map(p => { const pM=JSON.stringify(p); const dE=p.dataEntrega?.toDate(); let sAC='';if(dE&&p.status!=='Entregue'&&p.status!=='Cancelado'){const dH=(dE-(new Date()))/36e5;if(dH<0)sAC='late';else if(dH<=24)sAC='nearly-late';} let aB=`<button onclick="abrirDetalhesPedidoNovaGuia(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Detalhes"><i class="fas fa-eye"></i></button>`;if(['vendedor','admin'].includes(loggedInUserRole)){const bE=(p.status!=='Entregue'&&p.status!=='Cancelado')?`<button onclick="marcarComoEntregue('${p.id}')" class="btn-icon-action" title="Entregue">📦</button>`:'';aB+=` <button onclick="prepararEdicaoPedido(JSON.parse(decodeURIComponent('${encodeURIComponent(pM)}')))" class="btn-icon-action" title="Editar"><i class="fas fa-edit"></i></button>${bE}<button onclick="excluirPedido('${p.id}','${p.numeroPedido}')" class="btn-icon-action text-red-500 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button>`;}return `<tr><td class="pedido-numero ${sAC}">${p.numeroPedido}</td><td class="cliente-nome">${p.clienteNome}</td><td>${p.dataPedido?.toDate().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})||'N/A'}</td><td>${dE?.toLocaleDateString('pt-BR')||'N/A'}</td><td class="font-medium">R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td><td>${getStatusBadgeSimpleHTML(p)}</td><td class="text-xs space-x-1.5 whitespace-nowrap">${aB}</td></tr>`;}).join(''); }
@@ -909,10 +816,12 @@ window.prepararEdicaoPedido = (pObj) => {
 window.excluirPedido = (pedidoId, numeroPedido) => { showNotification({ message: `Excluir o pedido ${numeroPedido}?`, type: 'confirm-delete', onConfirm: async () => { try { await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId)); exibirMensagem('Pedido excluído!', 'success'); } catch (error) { console.error("Erro ao excluir pedido:", error); exibirMensagem('Erro ao excluir.', 'error'); } } }); }
 
 document.addEventListener('DOMContentLoaded', () => { 
-    togglePrecoFields();
-    togglePrecoFieldsEditar();
+    const produtoTipoPrecoEl = document.getElementById('produtoTipoPreco'); 
+    if (produtoTipoPrecoEl) {
+        togglePrecoFields();
+    }
+    const produtoTipoPrecoEditarEl = document.getElementById('produtoTipoPrecoEditar');
+    if(produtoTipoPrecoEditarEl){
+        togglePrecoFieldsEditar();
+    }
 });
-const produtoTipoPrecoEl = document.getElementById('produtoTipoPreco'); 
-if (produtoTipoPrecoEl) {
-    togglePrecoFields();
-}
