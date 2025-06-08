@@ -192,6 +192,9 @@
         const auth = getAuth(app);
         const shopInstanceAppId = 'KepzIFlUZ432Os7';
 
+        console.log('Firebase inicializado com configuração:', firebaseConfig);
+        console.log('Shop Instance ID:', shopInstanceAppId);
+
         // Função para formatar data
         function formatarData(timestamp) {
             if (!timestamp) return '-';
@@ -199,10 +202,13 @@
             return data.toLocaleDateString('pt-BR');
         }
 
-        // Função para formatar valor
+        // Função para formatar valores monetários
         function formatarValor(valor) {
             if (!valor) return 'R$ 0,00';
-            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor);
         }
 
         // Função para marcar item como impresso
@@ -227,12 +233,26 @@
                 console.log('Pedido existe:', pedidoDoc.exists());
 
                 if (!pedidoDoc.exists()) {
-                    alert('Pedido não encontrado');
-                    return;
+                    console.log('Pedido não encontrado no caminho:', pedidoRef.path);
+                    // Tentar caminho alternativo
+                    const pedidoRefAlt = doc(db, `pedidos`, pedidoId);
+                    console.log('Tentando caminho alternativo:', pedidoRefAlt.path);
+                    const pedidoDocAlt = await getDoc(pedidoRefAlt);
+                    
+                    if (pedidoDocAlt.exists()) {
+                        console.log('Pedido encontrado no caminho alternativo');
+                        const pedido = pedidoDocAlt.data();
+                        console.log('Dados do pedido:', pedido);
+                        // Continuar com o processamento do pedido...
+                    } else {
+                        console.log('Pedido não encontrado em nenhum caminho');
+                        alert('Pedido não encontrado');
+                        return;
+                    }
+                } else {
+                    const pedido = pedidoDoc.data();
+                    console.log('Dados do pedido:', pedido);
                 }
-
-                const pedido = pedidoDoc.data();
-                console.log('Dados do pedido:', pedido);
                 
                 if (!pedido.itens || !pedido.itens[itemIndex]) {
                     alert('Item não encontrado');
@@ -334,7 +354,12 @@
             const urlParams = new URLSearchParams(window.location.search);
             const pedidoId = urlParams.get('id');
             
+            console.log('URL completa:', window.location.href);
+            console.log('Parâmetros da URL:', Object.fromEntries(urlParams.entries()));
+            console.log('ID do pedido da URL:', pedidoId);
+            
             if (!pedidoId) {
+                console.error('ID do pedido não fornecido na URL');
                 alert('ID do pedido não fornecido');
                 return;
             }
@@ -342,7 +367,9 @@
             try {
                 // Fazer login anônimo se necessário
                 if (!auth.currentUser) {
+                    console.log('Fazendo login anônimo...');
                     await signInAnonymously(auth);
+                    console.log('Login anônimo realizado com sucesso');
                 }
 
                 // Obter o papel do usuário logado
@@ -351,18 +378,39 @@
                 window.loggedInUserRole = userRole;
                 window.loggedInUserName = userName;
 
-                console.log('Usuário logado:', { role: userRole, name: userName }); // Debug
+                console.log('Usuário logado:', { role: userRole, name: userName });
 
-                const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
-                const pedidoDoc = await getDoc(pedidoRef);
+                // Tentar diferentes caminhos para o pedido
+                const caminhos = [
+                    `artifacts/${shopInstanceAppId}/pedidos`,
+                    'pedidos',
+                    `artifacts/pedidos`,
+                    `pedidos/${shopInstanceAppId}`
+                ];
 
-                if (!pedidoDoc.exists()) {
+                let pedidoEncontrado = false;
+                let pedido = null;
+
+                for (const caminho of caminhos) {
+                    console.log(`Tentando buscar pedido no caminho: ${caminho}`);
+                    const pedidoRef = doc(db, caminho, pedidoId);
+                    const pedidoDoc = await getDoc(pedidoRef);
+                    
+                    if (pedidoDoc.exists()) {
+                        console.log(`Pedido encontrado no caminho: ${caminho}`);
+                        pedido = pedidoDoc.data();
+                        pedidoEncontrado = true;
+                        break;
+                    }
+                }
+
+                if (!pedidoEncontrado) {
+                    console.error('Pedido não encontrado em nenhum caminho');
                     alert('Pedido não encontrado');
                     return;
                 }
 
-                const pedido = pedidoDoc.data();
-                console.log('Dados do pedido:', pedido); // Debug
+                console.log('Dados do pedido:', pedido);
                 
                 // Preencher dados básicos
                 document.getElementById('numeroPedido').textContent = pedido.numeroPedido || `#PED-${pedidoId}`;
@@ -379,7 +427,7 @@
                 
                 if (pedido.itens && pedido.itens.length > 0) {
                     pedido.itens.forEach((item, index) => {
-                        console.log('Item:', item, 'Index:', index); // Debug
+                        console.log('Item:', item, 'Index:', index);
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
                             <td class="py-4 px-4 whitespace-nowrap">${item.quantidade}x</td>
