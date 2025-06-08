@@ -6,7 +6,7 @@
  */
 
 // MÓDULOS ESSENCIAIS
-import { initAuth, handleLogin, logout } from './auth.js';
+import { initAuth, handleLogin, logout, checkSession } from './auth.js';
 import { ajustarPaddingBody, setActiveMenuLink, showNotification } from './ui.js';
 
 // MÓDULOS DE FUNCIONALIDADE
@@ -22,63 +22,157 @@ let loggedInUserName = null;
 let loggedInUserIdGlobal = null;
 let activeSectionId = 'telaInicial';
 
-// --- INICIALIZAÇÃO DA APLICAÇÃO ---
+// Sistema de Cache
+const cache = {
+    data: new Map(),
+    timestamps: new Map(),
+    maxAge: 5 * 60 * 1000, // 5 minutos
 
-initAuth({
-    onUserLoggedIn: (userData) => {
-        loggedInUserRole = userData.role;
-        loggedInUserName = userData.name;
-        loggedInUserIdGlobal = userData.id;
+    set(key, value) {
+        this.data.set(key, value);
+        this.timestamps.set(key, Date.now());
+    },
 
-        const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
-        if (loggedInUserNameDisplay) {
-            loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`;
+    get(key) {
+        if (!this.data.has(key)) return null;
+        
+        const timestamp = this.timestamps.get(key);
+        if (Date.now() - timestamp > this.maxAge) {
+            this.data.delete(key);
+            this.timestamps.delete(key);
+            return null;
         }
-
-        document.body.classList.add('app-visible');
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appContainer').classList.remove('hidden');
-
-        configurarAcessoPorCargo(loggedInUserRole);
-        mostrarSecao('telaInicial', true);
-    },
-    onUserLoggedOut: () => {
-        document.body.classList.remove('app-visible');
-        document.getElementById('loginScreen').classList.remove('hidden');
-        document.getElementById('appContainer').classList.add('hidden');
-        document.body.style.paddingTop = '0px';
-    },
-    onAuthReady: async () => {
-        // As dependências que cada módulo precisa
-        const commonDeps = {
-            getRole: () => loggedInUserRole,
-            getUserName: () => loggedInUserName,
-            getUserId: () => loggedInUserIdGlobal,
-            mostrarSecao,
-            setActiveMenuLink,
-            atualizarDashboard // Passa a referência da função para que os módulos possam chamá-la
-        };
         
-        // Inicializa todos os módulos de funcionalidade
-        // Os módulos sem dependências de dados podem ser inicializados primeiro
-        await Promise.all([
-            initFuncionarios(commonDeps),
-            initFornecedores(commonDeps),
-            initProdutos(commonDeps),
-        ]);
-        
-        // Módulos que dependem de outros são inicializados depois
-        initClientes({ ...commonDeps, getPedidosCache: getPedidos });
+        return this.data.get(key);
+    },
 
-        // O módulo de pedidos é o último, pois pode depender de todos os outros
-        initPedidos({
-            ...commonDeps,
-            getClientes,
-            getProdutos
+    clear() {
+        this.data.clear();
+        this.timestamps.clear();
+    },
+
+    invalidate(key) {
+        this.data.delete(key);
+        this.timestamps.delete(key);
+    }
+};
+
+// Função para carregar dados com cache
+async function loadDataWithCache(key, loader) {
+    const cachedData = cache.get(key);
+    if (cachedData) {
+        return cachedData;
+    }
+
+    const data = await loader();
+    cache.set(key, data);
+    return data;
+}
+
+// Função para atualizar estatísticas do usuário
+async function atualizarEstatisticasUsuario() {
+    try {
+        const pedidos = await loadDataWithCache('pedidos', getPedidos);
+        const pedidosMes = pedidos.filter(p => {
+            const dataPedido = new Date(p.dataPedido);
+            const hoje = new Date();
+            return dataPedido.getMonth() === hoje.getMonth() && 
+                   dataPedido.getFullYear() === hoje.getFullYear();
+        });
+
+        const pedidosFinalizacao = pedidos.filter(p => 
+            p.status === 'Em Produção (Acabamento)' || 
+            p.status === 'Pronto para Retirada'
+        );
+
+        const pedidosFinalizados = pedidos.filter(p => 
+            p.status === 'Entregue'
+        );
+
+        document.getElementById('userPedidosMes').textContent = pedidosMes.length;
+        document.getElementById('userPedidosFinalizacao').textContent = pedidosFinalizacao.length;
+        document.getElementById('userPedidosFinalizados').textContent = pedidosFinalizados.length;
+    } catch (error) {
+        console.error('Erro ao atualizar estatísticas:', error);
+        showNotification({
+            message: 'Erro ao carregar estatísticas.',
+            type: 'error'
         });
     }
-});
+}
 
+// Função para limpar cache ao fazer logout
+function limparCache() {
+    cache.clear();
+}
+
+// Inicialização da aplicação
+async function initApp() {
+    try {
+        // Inicializar autenticação
+        initAuth({
+            onUserLoggedIn: (user) => {
+                loggedInUserRole = user.role;
+                loggedInUserName = user.name;
+                loggedInUserIdGlobal = user.id;
+                
+                // Atualizar interface
+                document.getElementById('loggedInUserNameDisplay').textContent = `Olá, ${user.name}`;
+                document.body.classList.add('app-visible');
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                
+                // Configurar acesso e carregar dados
+                configurarAcessoPorCargo(user.role);
+                setActiveMenuLink('telaInicial');
+                mostrarSecao('telaInicial', false);
+                ajustarPaddingBody();
+                
+                // Carregar dados iniciais
+                atualizarEstatisticasUsuario();
+            },
+            onUserLoggedOut: () => {
+                limparCache();
+                document.body.classList.remove('app-visible');
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('appContainer').classList.add('hidden');
+            },
+            onAuthReady: () => {
+                // Inicializar módulos
+                initClientes();
+                initProdutos();
+                initFuncionarios();
+                initFornecedores();
+                initPedidos();
+            }
+        });
+
+        // Configurar verificação periódica de sessão
+        setInterval(() => {
+            if (!checkSession()) {
+                logout();
+            }
+        }, 60000); // Verificar a cada minuto
+
+    } catch (error) {
+        console.error('Erro na inicialização:', error);
+        showNotification({
+            message: 'Erro ao inicializar a aplicação. Por favor, recarregue a página.',
+            type: 'error'
+        });
+    }
+}
+
+// Iniciar aplicação quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initApp);
+
+// Exportar funções necessárias
+export {
+    loadDataWithCache,
+    cache,
+    atualizarEstatisticasUsuario,
+    limparCache
+};
 
 // --- LÓGICA DE NAVEGAÇÃO E UI ---
 

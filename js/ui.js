@@ -6,7 +6,7 @@
  * e gerir a aparência geral da aplicação.
  */
 
-let notificationTimeout;
+let notificationTimeout = null;
 
 /**
  * Ajusta o padding do topo do corpo da página para compensar a altura do cabeçalho.
@@ -50,48 +50,114 @@ export function setActiveMenuLink(targetSectionId) {
  * @param {string} [config.type='info'] - O tipo de notificação (success, error, warning, info, confirm-delete).
  * @param {number} [config.duration=5000] - Duração em milissegundos.
  * @param {function} [config.onConfirm] - Callback para o botão de confirmação.
+ * @param {function} [config.onCancel] - Callback para o botão de cancelamento.
+ * @param {string} [config.confirmText] - Texto do botão de confirmação.
+ * @param {string} [config.cancelText] - Texto do botão de cancelamento.
  */
 export function showNotification(config) {
     const bar = document.getElementById('notificationBar');
-    if (!bar) return;
-    if (notificationTimeout) clearTimeout(notificationTimeout);
-    
-    const iconMap = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle', 'confirm-delete': 'fa-exclamation-triangle' };
-    bar.className = `notification-bar ${config.type}`;
-    document.getElementById('notificationIcon').innerHTML = `<i class="fas ${iconMap[config.type] || 'fa-info-circle'}"></i>`;
-    document.getElementById('notificationMessage').textContent = config.message;
-    const actions = document.getElementById('notificationActions');
-    actions.innerHTML = '';
-
-    if (config.type === 'confirm-delete') {
-        const confirmBtn = document.createElement('button');
-        confirmBtn.textContent = config.confirmText || 'Excluir';
-        confirmBtn.className = 'btn btn-confirm-action';
-        confirmBtn.onclick = () => { if (config.onConfirm) config.onConfirm(); hideNotification(); };
-        
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = config.cancelText || 'Cancelar';
-        cancelBtn.className = 'btn btn-cancel-action';
-        cancelBtn.onclick = () => { if (config.onCancel) config.onCancel(); hideNotification(); };
-        
-        actions.append(confirmBtn, cancelBtn);
-    } else {
-        notificationTimeout = setTimeout(hideNotification, config.duration || 5000);
+    if (!bar) {
+        console.error('Elemento de notificação não encontrado');
+        return;
     }
+
+    // Limpar timeout anterior
+    if (notificationTimeout) {
+        clearTimeout(notificationTimeout);
+    }
+
+    // Mapeamento de ícones e cores
+    const iconMap = {
+        success: { icon: 'fa-check-circle', color: 'var(--color-success)' },
+        error: { icon: 'fa-times-circle', color: 'var(--color-danger)' },
+        warning: { icon: 'fa-exclamation-triangle', color: 'var(--color-warning)' },
+        info: { icon: 'fa-info-circle', color: 'var(--color-info)' },
+        'confirm-delete': { icon: 'fa-exclamation-triangle', color: 'var(--color-warning)' }
+    };
+
+    // Configurar estilo da notificação
+    const style = iconMap[config.type] || iconMap.info;
+    bar.style.borderLeftColor = style.color;
+    bar.className = `notification-bar ${config.type} animate-slide-in`;
+
+    // Configurar ícone e mensagem
+    const icon = document.getElementById('notificationIcon');
+    const message = document.getElementById('notificationMessage');
+    if (icon) icon.innerHTML = `<i class="fas ${style.icon}" style="color: ${style.color}"></i>`;
+    if (message) message.textContent = config.message;
+
+    // Configurar ações
+    const actions = document.getElementById('notificationActions');
+    if (actions) {
+        actions.innerHTML = '';
+
+        if (config.type === 'confirm-delete') {
+            // Botão de confirmação
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = config.confirmText || 'Confirmar';
+            confirmBtn.className = 'btn btn-confirm-action';
+            confirmBtn.style.backgroundColor = 'var(--color-danger)';
+            confirmBtn.onclick = () => {
+                if (config.onConfirm) config.onConfirm();
+                hideNotification();
+            };
+
+            // Botão de cancelamento
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = config.cancelText || 'Cancelar';
+            cancelBtn.className = 'btn btn-cancel-action';
+            cancelBtn.style.backgroundColor = 'var(--color-secondary)';
+            cancelBtn.onclick = () => {
+                if (config.onCancel) config.onCancel();
+                hideNotification();
+            };
+
+            actions.append(confirmBtn, cancelBtn);
+        } else {
+            // Botão de fechar para notificações normais
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            closeBtn.className = 'notification-close-btn';
+            closeBtn.onclick = hideNotification;
+            actions.appendChild(closeBtn);
+
+            // Auto-fechar após duração
+            notificationTimeout = setTimeout(hideNotification, config.duration || 5000);
+        }
+    }
+
+    // Mostrar notificação com animação
     bar.classList.add('visible');
-    ajustarPaddingBody(); 
+    ajustarPaddingBody();
+
+    // Adicionar evento de tecla ESC para fechar
+    document.addEventListener('keydown', handleEscKey);
 }
 
 /**
- * Esconde a barra de notificação.
+ * Esconde a notificação com animação.
  */
 export function hideNotification() {
     const bar = document.getElementById('notificationBar');
-    if (bar) {
-        bar.classList.remove('visible');
-        if (notificationTimeout) clearTimeout(notificationTimeout);
-        // Aguarda a transição CSS terminar antes de reajustar o padding
-        setTimeout(ajustarPaddingBody, 400); 
+    if (!bar) return;
+
+    bar.classList.add('animate-slide-out');
+    setTimeout(() => {
+        bar.classList.remove('visible', 'animate-slide-in', 'animate-slide-out');
+        ajustarPaddingBody();
+    }, 300);
+
+    // Remover evento de tecla ESC
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+/**
+ * Manipula o evento de tecla ESC.
+ * @param {KeyboardEvent} e - O evento de tecla.
+ */
+function handleEscKey(e) {
+    if (e.key === 'Escape') {
+        hideNotification();
     }
 }
 

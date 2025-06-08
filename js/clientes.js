@@ -17,6 +17,92 @@ let clienteSelecionadoId = null;
 let getPedidosCache = () => [];
 let getRole = () => null;
 
+// Validar CPF
+function validarCPF(cpf) {
+    cpf = cpf.replace(/[^\d]/g, '');
+    if (cpf.length !== 11) return false;
+    
+    // Verificar se todos os dígitos são iguais
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+    
+    // Validar primeiro dígito verificador
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+        soma += parseInt(cpf.charAt(i)) * (10 - i);
+    }
+    let resto = 11 - (soma % 11);
+    let digitoVerificador1 = resto > 9 ? 0 : resto;
+    if (digitoVerificador1 !== parseInt(cpf.charAt(9))) return false;
+    
+    // Validar segundo dígito verificador
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+        soma += parseInt(cpf.charAt(i)) * (11 - i);
+    }
+    resto = 11 - (soma % 11);
+    let digitoVerificador2 = resto > 9 ? 0 : resto;
+    if (digitoVerificador2 !== parseInt(cpf.charAt(10))) return false;
+    
+    return true;
+}
+
+// Validar CNPJ
+function validarCNPJ(cnpj) {
+    cnpj = cnpj.replace(/[^\d]/g, '');
+    if (cnpj.length !== 14) return false;
+    
+    // Verificar se todos os dígitos são iguais
+    if (/^(\d)\1{13}$/.test(cnpj)) return false;
+    
+    // Validar primeiro dígito verificador
+    let tamanho = cnpj.length - 2;
+    let numeros = cnpj.substring(0, tamanho);
+    let digitos = cnpj.substring(tamanho);
+    let soma = 0;
+    let pos = tamanho - 7;
+    
+    for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
+        if (pos < 2) pos = 9;
+    }
+    
+    let resultado = soma % 11 < 2 ? 0 : 11 - soma % 11;
+    if (resultado !== parseInt(digitos.charAt(0))) return false;
+    
+    // Validar segundo dígito verificador
+    tamanho = tamanho + 1;
+    numeros = cnpj.substring(0, tamanho);
+    soma = 0;
+    pos = tamanho - 7;
+    
+    for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
+        if (pos < 2) pos = 9;
+    }
+    
+    resultado = soma % 11 < 2 ? 0 : 11 - soma % 11;
+    if (resultado !== parseInt(digitos.charAt(1))) return false;
+    
+    return true;
+}
+
+// Validar email
+function validarEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+// Validar telefone
+function validarTelefone(telefone) {
+    const re = /^\(\d{2}\) \d{5}-\d{4}$/;
+    return re.test(telefone);
+}
+
+// Sanitizar input
+function sanitizarInput(input) {
+    return input.replace(/[<>]/g, '');
+}
+
 /**
  * Renderiza um item da lista de clientes na interface.
  * @param {object} cliente - O objeto do cliente a ser renderizado.
@@ -129,28 +215,58 @@ function carregarClientes(onUpdate) {
 async function handleCadastroCliente(e) {
     e.preventDefault();
     const form = e.target;
-    const data = {
-        nome: form.clienteNome.value,
-        tipoCliente: form.clienteTipo.value,
-        telefone: form.clienteTelefone.value,
-        email: form.clienteEmail.value,
-        cpfCnpj: form.clienteCpfCnpj.value,
-        endereco: form.clienteEndereco.value,
-        criadoEm: Timestamp.now()
-    };
     
-    if (!data.nome.trim()) {
+    // Sanitizar e validar inputs
+    const nome = sanitizarInput(form.clienteNome.value.trim());
+    const tipoCliente = form.clienteTipo.value;
+    const telefone = form.clienteTelefone.value.trim();
+    const email = form.clienteEmail.value.trim();
+    const cpfCnpj = form.clienteCpfCnpj.value.trim();
+    const endereco = sanitizarInput(form.clienteEndereco.value.trim());
+    
+    // Validações
+    if (!nome) {
         showNotification({ message: "O nome do cliente é obrigatório.", type: 'warning' });
         return;
     }
+    
+    if (telefone && !validarTelefone(telefone)) {
+        showNotification({ message: "Formato de telefone inválido. Use (99) 99999-9999", type: 'warning' });
+        return;
+    }
+    
+    if (email && !validarEmail(email)) {
+        showNotification({ message: "Email inválido.", type: 'warning' });
+        return;
+    }
+    
+    if (cpfCnpj) {
+        if (cpfCnpj.length === 11 && !validarCPF(cpfCnpj)) {
+            showNotification({ message: "CPF inválido.", type: 'warning' });
+            return;
+        } else if (cpfCnpj.length === 14 && !validarCNPJ(cpfCnpj)) {
+            showNotification({ message: "CNPJ inválido.", type: 'warning' });
+            return;
+        }
+    }
+    
+    const data = {
+        nome,
+        tipoCliente,
+        telefone,
+        email,
+        cpfCnpj,
+        endereco,
+        criadoEm: Timestamp.now()
+    };
 
     try {
         await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), data);
-        showNotification({ message: 'Cliente registado!', type: 'success' });
+        showNotification({ message: 'Cliente registado com sucesso!', type: 'success' });
         form.reset();
     } catch (err) {
         console.error("Erro ao registar cliente:", err);
-        showNotification({ message: 'Erro ao registar cliente.', type: 'error' });
+        showNotification({ message: 'Erro ao registar cliente. Por favor, tente novamente.', type: 'error' });
     }
 }
 
