@@ -2,36 +2,13 @@
 
 /**
  * Módulo de Configuração do Firebase
- * * Este ficheiro centraliza a inicialização do Firebase e exporta as instâncias
- * e funções necessárias para o resto da aplicação.
- * Isto evita a repetição da configuração em múltiplos ficheiros.
+ * Centraliza a inicialização e exporta as instâncias e funções.
  */
 
-// Importações do Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { 
-    getAuth, 
-    signInAnonymously, 
-    onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    doc, 
-    getDocs, 
-    query, 
-    limit,
-    onSnapshot, 
-    Timestamp,
-    writeBatch,
-    deleteDoc, 
-    setDoc,
-    updateDoc, 
-    where 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, doc, getDocs, query, limit, onSnapshot, Timestamp, writeBatch, deleteDoc, setDoc, updateDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// A sua configuração do Firebase
 const firebaseConfig = {
      apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
      authDomain: "sistema-grafica-pro.firebaseapp.com",
@@ -41,19 +18,18 @@ const firebaseConfig = {
      appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
 };
 
-// Inicialização dos serviços do Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ID da instância da aplicação (para ambientes multi-tenant, se aplicável)
-const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// **CORREÇÃO: Simplificação do caminho da base de dados**
+// Todas as coleções estarão dentro de 'grafica-pro-data' para garantir consistência.
+const basePath = `artifacts/grafica-pro-data`;
 
-// Exporta as instâncias e funções para serem usadas noutros módulos
 export {
     auth,
     db,
-    shopInstanceAppId,
+    basePath, // Exporta o caminho base
     // Funções de Autenticação
     signInAnonymously,
     onAuthStateChanged,
