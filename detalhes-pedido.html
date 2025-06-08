@@ -121,6 +121,20 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Seção de Preview da Imagem -->
+            <div class="mt-10">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">PREVIEW DO PEDIDO</h3>
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <div id="previewContainer" class="relative">
+                        <img id="previewImagem" src="" alt="Preview do pedido" class="max-w-full h-auto rounded-lg hidden">
+                        <div id="previewPlaceholder" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-image text-4xl mb-2"></i>
+                            <p>Nenhuma imagem disponível</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <div class="mt-10 grid grid-cols-2 gap-16 items-start">
                 <div>
@@ -278,6 +292,19 @@
                 const totalPago = pedido.pagamentos?.reduce((acc, p) => acc + (p.valorPago || 0), 0) || 0;
                 document.getElementById('totalPago').textContent = formatarValor(totalPago);
                 document.getElementById('statusPagamento').textContent = totalPago >= pedido.valorTotal ? 'Pago' : 'Pendente';
+
+                // Preencher preview da imagem
+                const previewImagem = document.getElementById('previewImagem');
+                const previewPlaceholder = document.getElementById('previewPlaceholder');
+                
+                if (pedido.imagemPreviewPedidoBase64) {
+                    previewImagem.src = pedido.imagemPreviewPedidoBase64;
+                    previewImagem.classList.remove('hidden');
+                    previewPlaceholder.classList.add('hidden');
+                } else {
+                    previewImagem.classList.add('hidden');
+                    previewPlaceholder.classList.remove('hidden');
+                }
 
                 // Data de geração
                 document.getElementById('dataGeracao').textContent = `Gerado em: ${formatarData(new Date())}`;
