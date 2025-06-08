@@ -64,13 +64,16 @@ async function startUserSession(userData) {
             atualizarDashboard
         };
         
+        // Inicializa o módulo de clientes primeiro
+        initClientes({ ...commonDeps, getPedidosCache: getPedidos });
+        
+        // Inicializa os outros módulos em paralelo
         await Promise.all([
             initFuncionarios(commonDeps),
             initFornecedores(commonDeps),
             initProdutos(commonDeps),
         ]);
         
-        initClientes({ ...commonDeps, getPedidosCache: getPedidos });
         initPedidos({ ...commonDeps, getClientes, getProdutos });
         modulosIniciados = true;
     }

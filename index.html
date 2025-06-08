@@ -125,5 +125,41 @@
     </div>
     
     <script type="module" src="./js/main.js?v=1.4"></script>
+
+    <!-- Modal de Novo Cliente Rápido -->
+    <div id="modalNovoClienteRapidoOverlay" class="modal-overlay hidden" role="dialog" aria-labelledby="modalNovoClienteRapidoTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalNovoClienteRapidoTitle" class="modal-title">Registar Novo Cliente</h3>
+                <button type="button" class="modal-close" onclick="window.fecharModalNovoClienteRapido()" aria-label="Fechar">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="formNovoClienteRapido" class="modal-body space-y-4">
+                <div>
+                    <label for="clienteRapidoNome" class="label-text">Nome Completo / Razão Social:</label>
+                    <input type="text" id="clienteRapidoNome" class="input-field" required>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="clienteRapidoTipo" class="label-text">Tipo de Cliente:</label>
+                        <select id="clienteRapidoTipo" class="input-field">
+                            <option value="final">Cliente Final</option>
+                            <option value="revenda">Revenda</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="clienteRapidoTelefone" class="label-text">Telefone:</label>
+                        <input type="tel" id="clienteRapidoTelefone" class="input-field">
+                    </div>
+                </div>
+                <div class="flex justify-end pt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus mr-1.5"></i>Guardar Cliente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
