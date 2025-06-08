@@ -1326,13 +1326,27 @@
             try {
                 console.log('Tentando mostrar seção:', idSecao);
                 if (idSecao === 'gerenciarPermissoes') {
+                    // Verificar se o usuário é administrador
+                    const userRole = localStorage.getItem('loggedInUserRole');
+                    if (userRole !== 'admin') {
+                        exibirMensagem('Acesso restrito a administradores.', 'error');
+                        return;
+                    }
+
                     const modal = document.getElementById('modalGerenciarPermissoesOverlay');
                     if (!modal) {
                         console.error('Modal de permissões não encontrado');
+                        exibirMensagem('Erro ao abrir modal de permissões.', 'error');
                         return;
                     }
-                    modal.classList.remove('hidden');
-                    carregarPermissoesSetor();
+
+                    // Abrir o modal usando a função abrirModalEspecifico
+                    abrirModalEspecifico('modalGerenciarPermissoesOverlay');
+                    
+                    // Carregar as permissões após o modal estar visível
+                    setTimeout(() => {
+                        carregarPermissoesSetor();
+                    }, 100);
                     return;
                 }
                 // ... restante da função original ...
@@ -1344,17 +1358,23 @@
 
         // Função para fechar o modal
         function fecharModalGerenciarPermissoes() {
-            document.getElementById('modalGerenciarPermissoesOverlay').classList.add('hidden');
+            fecharModalEspecifico('modalGerenciarPermissoesOverlay');
         }
 
         // Carregar permissões do setor selecionado
         function carregarPermissoesSetor() {
-            const setor = document.getElementById('selectSetorPermissao').value;
-            const permissoesSalvas = JSON.parse(localStorage.getItem('permissoesPorSetor') || '{}');
-            const permissoes = permissoesSalvas[setor] || [];
-            document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
-                cb.checked = permissoes.includes(cb.value);
-            });
+            try {
+                const setor = document.getElementById('selectSetorPermissao').value;
+                const permissoesSalvas = JSON.parse(localStorage.getItem('permissoesPorSetor') || '{}');
+                const permissoes = permissoesSalvas[setor] || [];
+                
+                document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
+                    cb.checked = permissoes.includes(cb.value);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar permissões:', error);
+                exibirMensagem('Erro ao carregar permissões.', 'error');
+            }
         }
 
         document.getElementById('selectSetorPermissao').addEventListener('change', carregarPermissoesSetor);
