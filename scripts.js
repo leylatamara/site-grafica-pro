@@ -30,9 +30,6 @@ const firebaseConfig = {
      appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
 };
 
-// **CORREÇÃO APLICADA AQUI**
-// Verifica se alguma instância do Firebase já foi inicializada.
-// Se não houver, inicializa uma nova. Caso contrário, usa a existente.
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
@@ -263,7 +260,42 @@ async function handleLogin(codigo) {
     const loggedInUserNameDisplay = document.getElementById('loggedInUserNameDisplay');
     
     loginErrorMessage.classList.add('hidden'); 
-    if (!auth.currentUser) { loginErrorMessage.textContent = "Aguardando autenticação. Tente novamente."; loginErrorMessage.classList.remove('hidden'); return; }
+
+    // **MODIFICAÇÃO AQUI: CÓDIGO MESTRE PARA PRIMEIRO ACESSO**
+    if (codigo === '000000') {
+        loggedInUserRole = 'admin';
+        loggedInUserName = 'Super Admin';
+        loggedInUserIdGlobal = 'master_admin_id'; // ID simbólico para o super admin
+
+        // Salva os dados na localStorage para manter a sessão
+        localStorage.setItem('loggedInUserRole', loggedInUserRole);
+        localStorage.setItem('loggedInUserName', loggedInUserName);
+        localStorage.setItem('loggedInUserId', loggedInUserIdGlobal);
+
+        // Atualiza a UI
+        if (loggedInUserNameDisplay) { loggedInUserNameDisplay.textContent = `Olá, ${loggedInUserName}`; }
+        atualizarEstatisticasUsuario();
+        document.body.classList.add('app-visible'); 
+        loginScreen.classList.add('hidden'); 
+        appContainer.classList.remove('hidden'); 
+        codigoAcessoInput.value = ''; 
+        
+        // Direciona para a tela inicial
+        configurarAcessoPorCargo(loggedInUserRole);
+        setActiveMenuLink('telaInicial');
+        mostrarSecao('telaInicial', false); 
+        ajustarPaddingBody();
+
+        // Exibe mensagem de boas-vindas e instrução
+        exibirMensagem('Login mestre efetuado! Crie um novo admin.', 'success', 8000);
+        return; // Termina a função aqui para não consultar o banco de dados
+    }
+
+    if (!auth.currentUser) { 
+        loginErrorMessage.textContent = "Aguardando autenticação. Tente novamente."; 
+        loginErrorMessage.classList.remove('hidden'); 
+        return; 
+    }
 
     try {
         const funcionariosRef = collection(db, `artifacts/${shopInstanceAppId}/funcionarios`);
@@ -286,10 +318,10 @@ async function handleLogin(codigo) {
             atualizarEstatisticasUsuario();
 
             document.body.classList.add('app-visible'); 
-            loginScreen.classList.add('hidden'); appContainer.classList.remove('hidden'); codigoAcessoInput.value = ''; 
+            loginScreen.classList.add('hidden'); 
+            appContainer.classList.remove('hidden'); 
+            codigoAcessoInput.value = ''; 
             
-            // **MODIFICAÇÃO AQUI**
-            // Direciona o usuário para a tela correta com base no cargo.
             configurarAcessoPorCargo(loggedInUserRole);
             if (loggedInUserRole === 'impressor' || loggedInUserRole === 'producao') {
                 setActiveMenuLink('visualizarPedidos');
@@ -301,9 +333,20 @@ async function handleLogin(codigo) {
             ajustarPaddingBody();
 
         } else {
-            loginErrorMessage.textContent = "Código inválido."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;
+            loginErrorMessage.textContent = "Código inválido."; 
+            loginErrorMessage.classList.remove('hidden'); 
+            loggedInUserRole = null; 
+            loggedInUserName = null; 
+            loggedInUserIdGlobal = null;
         }
-    } catch (error) { console.error("Erro login:", error); loginErrorMessage.textContent = "Erro. Tente novamente."; loginErrorMessage.classList.remove('hidden'); loggedInUserRole = null; loggedInUserName = null; loggedInUserIdGlobal = null;}
+    } catch (error) { 
+        console.error("Erro login:", error); 
+        loginErrorMessage.textContent = "Erro ao tentar fazer login. Tente novamente."; 
+        loginErrorMessage.classList.remove('hidden'); 
+        loggedInUserRole = null; 
+        loggedInUserName = null; 
+        loggedInUserIdGlobal = null;
+    }
 }
 
 function logout() {
