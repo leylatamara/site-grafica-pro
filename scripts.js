@@ -936,17 +936,15 @@ async function marcarItemComoImpresso(pedidoId, itemIndex) {
             return;
         }
 
-        // Inicializar productionSteps se não existir
-        if (!pedido.itens[itemIndex].productionSteps) {
-            pedido.itens[itemIndex].productionSteps = {};
-        }
-
-        // Atualizar status de impressão
+        // Criar objeto de atualização
         const updateData = {
-            [`itens.${itemIndex}.productionSteps.impressao`]: {
-                concluido: true,
-                responsavel: userName,
-                data: new Date().toISOString()
+            [`itens.${itemIndex}.productionSteps`]: {
+                ...pedido.itens[itemIndex].productionSteps,
+                impressao: {
+                    concluido: true,
+                    responsavel: userName,
+                    data: new Date().toISOString()
+                }
             }
         };
         
@@ -959,9 +957,9 @@ async function marcarItemComoImpresso(pedidoId, itemIndex) {
         alert('Item marcado como impresso com sucesso!');
         
         // Recarregar os dados
-        if (typeof carregarDadosPedido === 'function') {
+        if (typeof window.carregarDadosPedido === 'function') {
             console.log('Recarregando dados do pedido...');
-            await carregarDadosPedido();
+            await window.carregarDadosPedido();
         } else {
             console.log('Função carregarDadosPedido não encontrada');
             window.location.reload();
@@ -1006,17 +1004,15 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
             return;
         }
 
-        // Inicializar productionSteps se não existir
-        if (!pedido.itens[itemIndex].productionSteps) {
-            pedido.itens[itemIndex].productionSteps = {};
-        }
-
-        // Atualizar status de acabamento
+        // Criar objeto de atualização
         const updateData = {
-            [`itens.${itemIndex}.productionSteps.acabamento`]: {
-                concluido: true,
-                responsavel: userName,
-                data: new Date().toISOString()
+            [`itens.${itemIndex}.productionSteps`]: {
+                ...pedido.itens[itemIndex].productionSteps,
+                acabamento: {
+                    concluido: true,
+                    responsavel: userName,
+                    data: new Date().toISOString()
+                }
             }
         };
         
@@ -1029,9 +1025,9 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
         alert('Item marcado como acabado com sucesso!');
         
         // Recarregar os dados
-        if (typeof carregarDadosPedido === 'function') {
+        if (typeof window.carregarDadosPedido === 'function') {
             console.log('Recarregando dados do pedido...');
-            await carregarDadosPedido();
+            await window.carregarDadosPedido();
         } else {
             console.log('Função carregarDadosPedido não encontrada');
             window.location.reload();

@@ -278,7 +278,7 @@
                                             `<span class="text-gray-400">
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
-                                                ${['impressor', 'admin'].includes(loggedInUserRole) ? 
+                                                ${['impressor', 'admin'].includes(window.loggedInUserRole) ? 
                                                     `<button onclick="window.marcarItemComoImpresso('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como impresso
                                                     </button>` : 
@@ -298,7 +298,7 @@
                                             `<span class="text-gray-400">
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
-                                                ${['producao', 'admin'].includes(loggedInUserRole) ? 
+                                                ${['producao', 'admin'].includes(window.loggedInUserRole) ? 
                                                     `<button onclick="window.marcarItemComoAcabado('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como acabado
                                                     </button>` : 
@@ -354,8 +354,8 @@
                 document.getElementById('dataGeracao').textContent = `Gerado em: ${formatarData(new Date())}`;
 
             } catch (error) {
-                console.error('Erro ao carregar pedido:', error);
-                alert('Erro ao carregar dados do pedido');
+                console.error('Erro ao carregar dados do pedido:', error);
+                alert('Erro ao carregar dados do pedido: ' + error.message);
             }
         }
 
