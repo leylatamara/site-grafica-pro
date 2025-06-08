@@ -1,5 +1,5 @@
 /* Container de notificações */
-.notification-container {
+.notification-system {
     position: fixed;
     top: 1rem;
     right: 1rem;
@@ -125,7 +125,7 @@
 
 /* Responsividade */
 @media (max-width: 640px) {
-    .notification-container {
+    .notification-system {
         left: 1rem;
         right: 1rem;
         max-width: none;
