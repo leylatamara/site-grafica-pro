@@ -1,0 +1,87 @@
+/* Menu principal */
+.main-menu {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* Item do menu */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.menu-item:hover {
+    background-color: var(--background-color);
+}
+
+.menu-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Ícone do menu */
+.menu-icon {
+    font-size: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Texto do menu */
+.menu-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Informações do usuário */
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.user-info span {
+    font-size: 0.875rem;
+}
+
+.user-info span:first-child {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.user-info span:last-child {
+    color: var(--secondary-color);
+    text-transform: capitalize;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .main-menu {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .main-menu {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-info {
+        align-items: center;
+    }
+} 

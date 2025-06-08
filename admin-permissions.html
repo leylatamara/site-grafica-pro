@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Permissões - GraficaPro</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <h1>Gerenciamento de Permissões</h1>
+            <nav class="admin-nav">
+                <a href="dashboard" class="btn">Voltar ao Dashboard</a>
+                <a href="admin-logs" class="btn">Ver Logs</a>
+            </nav>
+        </header>
+
+        <main class="admin-content">
+            <section class="permissions-section">
+                <h2>Permissões por Setor</h2>
+                
+                <div class="sector-selector">
+                    <label for="sector">Selecione o Setor:</label>
+                    <select id="sector" class="form-control">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+
+                <div class="permissions-grid" id="permissionsGrid">
+                    <!-- Grid de permissões será preenchido via JavaScript -->
+                </div>
+
+                <div class="permissions-actions">
+                    <button id="savePermissions" class="btn btn-primary">Salvar Permissões</button>
+                    <button id="resetPermissions" class="btn btn-secondary">Restaurar Padrões</button>
+                </div>
+            </section>
+
+            <section class="help-section">
+                <h3>Níveis de Permissão</h3>
+                <ul class="permission-levels">
+                    <li><strong>Sem Acesso (0):</strong> Usuário não pode acessar a página</li>
+                    <li><strong>Leitura (1):</strong> Usuário pode apenas visualizar a página</li>
+                    <li><strong>Escrita (2):</strong> Usuário pode visualizar e modificar dados</li>
+                    <li><strong>Administrador (3):</strong> Acesso total à página</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { getSectors, getAvailablePages, updateSectorPermissions, getPermissionLevelText, PermissionLevel } from './js/permissions.js';
+        import { showNotification } from './js/app.js';
+        import { getPermissions } from './js/database.js';
+
+        // Elementos do DOM
+        const sectorSelect = document.getElementById('sector');
+        const permissionsGrid = document.getElementById('permissionsGrid');
+        const saveButton = document.getElementById('savePermissions');
+        const resetButton = document.getElementById('resetPermissions');
+
+        // Estado atual
+        let currentPermissions = {};
+        let availablePages = [];
+        let sectors = [];
+
+        // Inicialização
+        async function init() {
+            try {
+                // Carregar setores e páginas
+                sectors = await getSectors();
+                availablePages = await getAvailablePages();
+
+                // Preencher select de setores
+                sectorSelect.innerHTML = '<option value="">Selecione...</option>' +
+                    sectors.map(sector => 
+                        `<option value="${sector.id}">${sector.name}</option>`
+                    ).join('');
+
+                // Criar grid de permissões
+                createPermissionsGrid();
+
+                // Eventos
+                sectorSelect.addEventListener('change', handleSectorChange);
+                saveButton.addEventListener('click', handleSave);
+                resetButton.addEventListener('click', handleReset);
+            } catch (error) {
+                console.error('Erro na inicialização:', error);
+                showNotification('Erro ao carregar dados', 'error');
+            }
+        }
+
+        // Criar grid de permissões
+        function createPermissionsGrid() {
+            permissionsGrid.innerHTML = `
+                <div class="grid-header">
+                    <div class="grid-cell">Página</div>
+                    <div class="grid-cell">Nível de Acesso</div>
+                </div>
+                ${availablePages.map(page => `
+                    <div class="grid-row" data-page="${page}">
+                        <div class="grid-cell">${page}</div>
+                        <div class="grid-cell">
+                            <select class="permission-level" data-page="${page}">
+                                ${Object.entries(PermissionLevel)
+                                    .filter(([key]) => key !== 'ADMIN')
+                                    .map(([key, value]) => `
+                                        <option value="${value}">${getPermissionLevelText(value)}</option>
+                                    `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // Manipular mudança de setor
+        async function handleSectorChange() {
+            const sectorId = sectorSelect.value;
+            if (!sectorId) {
+                permissionsGrid.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Carregar permissões do setor
+                const permissions = await getPermissions(sectorId);
+                
+                // Atualizar grid
+                permissions.forEach(permission => {
+                    const select = permissionsGrid.querySelector(`select[data-page="${permission.page}"]`);
+                    if (select) {
+                        select.value = permission.level;
+                    }
+                });
+
+                permissionsGrid.style.display = 'grid';
+            } catch (error) {
+                console.error('Erro ao carregar permissões:', error);
+                showNotification('Erro ao carregar permissões', 'error');
+            }
+        }
+
+        // Manipular salvamento
+        async function handleSave() {
+            const sectorId = sectorSelect.value;
+            if (!sectorId) {
+                showNotification('Selecione um setor', 'error');
+                return;
+            }
+
+            try {
+                // Coletar permissões
+                const permissions = {};
+                permissionsGrid.querySelectorAll('.permission-level').forEach(select => {
+                    permissions[select.dataset.page] = parseInt(select.value);
+                });
+
+                // Salvar permissões
+                const success = await updateSectorPermissions(sectorId, permissions);
+                
+                if (success) {
+                    showNotification('Permissões atualizadas com sucesso', 'success');
+                } else {
+                    showNotification('Erro ao atualizar permissões', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar permissões:', error);
+                showNotification('Erro ao salvar permissões', 'error');
+            }
+        }
+
+        // Manipular reset
+        async function handleReset() {
+            const sectorId = sectorSelect.value;
+            if (!sectorId) {
+                showNotification('Selecione um setor', 'error');
+                return;
+            }
+
+            if (confirm('Tem certeza que deseja restaurar as permissões padrão?')) {
+                try {
+                    // Resetar permissões
+                    const success = await updateSectorPermissions(sectorId, {});
+                    
+                    if (success) {
+                        showNotification('Permissões restauradas com sucesso', 'success');
+                        handleSectorChange();
+                    } else {
+                        showNotification('Erro ao restaurar permissões', 'error');
+                    }
+                } catch (error) {
+                    console.error('Erro ao resetar permissões:', error);
+                    showNotification('Erro ao resetar permissões', 'error');
+                }
+            }
+        }
+
+        // Inicializar
+        init();
+    </script>
+</body>
+</html> 

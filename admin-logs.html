@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs e Backups - Sistema Gráfica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --interactive-bg-dark-primary: #1a1a2e;
+            --interactive-bg-dark-secondary: #24283b;
+            --interactive-text-light-primary: #ffffff;
+            --interactive-text-light-secondary: #e0e7ff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--interactive-bg-dark-primary);
+            color: var(--interactive-text-light-secondary);
+        }
+
+        .log-card {
+            background-color: var(--interactive-bg-dark-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .log-table th,
+        .log-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .log-table th {
+            font-weight: 600;
+            color: var(--interactive-text-light-primary);
+        }
+
+        .status-success { color: #4caf50; }
+        .status-error { color: #f44336; }
+        .status-warning { color: #ff9800; }
+
+        .backup-card {
+            background-color: var(--interactive-bg-dark-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .date-filter {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--interactive-text-light-primary);
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-2xl font-bold mb-8 text-white">Logs e Backups do Sistema</h1>
+        
+        <!-- Filtros de Log -->
+        <div class="log-card mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-white">Filtros</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm mb-2">Usuário</label>
+                    <input type="text" id="userFilter" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">Página</label>
+                    <input type="text" id="pageFilter" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">Data Inicial</label>
+                    <input type="date" id="startDate" class="date-filter w-full">
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">Data Final</label>
+                    <input type="date" id="endDate" class="date-filter w-full">
+                </div>
+            </div>
+            <button id="applyFilters" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                Aplicar Filtros
+            </button>
+        </div>
+
+        <!-- Tabela de Logs -->
+        <div class="log-card">
+            <h2 class="text-xl font-semibold mb-4 text-white">Logs de Acesso</h2>
+            <div class="overflow-x-auto">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Página</th>
+                            <th>Ação</th>
+                            <th>Status</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <!-- Logs serão inseridos aqui via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Seção de Backups -->
+        <div class="log-card mt-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-white">Backups do Sistema</h2>
+                <button id="createBackup" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                    Criar Novo Backup
+                </button>
+            </div>
+            <div id="backupsList">
+                <!-- Backups serão inseridos aqui via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getAccessLogs, createBackup, getBackups, restoreBackup } from './js/database.js';
+        import { showNotification } from './js/app.js';
+        import { isAuthenticated, getUserData } from './js/auth.js';
+
+        // Verificar se é admin
+        const userData = getUserData();
+        if (!userData || userData.sector !== 'admin') {
+            window.location.href = '/dashboard';
+        }
+
+        // Elementos do DOM
+        const logsTableBody = document.getElementById('logsTableBody');
+        const backupsList = document.getElementById('backupsList');
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        const createBackupBtn = document.getElementById('createBackup');
+
+        // Carregar logs
+        const loadLogs = async (filters = {}) => {
+            try {
+                const logs = await getAccessLogs(filters);
+                logsTableBody.innerHTML = logs.map(log => `
+                    <tr>
+                        <td>${new Date(log.timestamp).toLocaleString()}</td>
+                        <td>${log.userId}</td>
+                        <td>${log.page}</td>
+                        <td>${log.action}</td>
+                        <td class="status-${log.status}">${log.status}</td>
+                        <td>${log.ip}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showNotification('Erro ao carregar logs', 'error');
+            }
+        };
+
+        // Carregar backups
+        const loadBackups = async () => {
+            try {
+                const backups = await getBackups();
+                backupsList.innerHTML = backups.map(backup => `
+                    <div class="backup-card">
+                        <div>
+                            <h3 class="font-semibold text-white">Backup ${new Date(backup.timestamp).toLocaleString()}</h3>
+                            <p class="text-sm text-gray-400">
+                                ${backup.data.permissions.length} permissões, ${backup.data.groups.length} grupos
+                            </p>
+                        </div>
+                        <button class="restore-backup bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                data-backup-id="${backup.id}">
+                            Restaurar
+                        </button>
+                    </div>
+                `).join('');
+
+                // Adicionar listeners para botões de restauração
+                document.querySelectorAll('.restore-backup').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const backupId = button.dataset.backupId;
+                        try {
+                            await restoreBackup(backupId);
+                            showNotification('Backup restaurado com sucesso!', 'success');
+                            loadLogs();
+                        } catch (error) {
+                            showNotification('Erro ao restaurar backup', 'error');
+                        }
+                    });
+                });
+            } catch (error) {
+                showNotification('Erro ao carregar backups', 'error');
+            }
+        };
+
+        // Aplicar filtros
+        applyFiltersBtn.addEventListener('click', () => {
+            const filters = {
+                userId: document.getElementById('userFilter').value,
+                page: document.getElementById('pageFilter').value,
+                startDate: document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null,
+                endDate: document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null
+            };
+            loadLogs(filters);
+        });
+
+        // Criar backup
+        createBackupBtn.addEventListener('click', async () => {
+            try {
+                await createBackup();
+                showNotification('Backup criado com sucesso!', 'success');
+                loadBackups();
+            } catch (error) {
+                showNotification('Erro ao criar backup', 'error');
+            }
+        });
+
+        // Carregar dados iniciais
+        loadLogs();
+        loadBackups();
+    </script>
+</body>
+</html> 
