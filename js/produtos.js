@@ -5,182 +5,263 @@
  * Gere todas as operações CRUD e a lógica de UI para os produtos.
  */
 
-import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp } from './firebase-config.js';
+import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, where, orderBy } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
 // Estado interno do módulo
 let produtosCache = [];
-let getRole = () => null; // Função de dependência, será injetada
+let produtoSelecionadoId = null;
+
+// Dependências externas (injetadas)
+let getRole = () => null;
 
 /**
- * Cria o elemento HTML para um item da lista de produtos.
- * @param {object} produto - O objeto do produto.
- * @returns {HTMLElement} O elemento div do item da lista.
+ * Carrega os produtos do Firestore
  */
-function createProductListItem(produto) {
-    const itemDiv = document.createElement('div');
-    itemDiv.className = 'item-list-display !cursor-default flex justify-between items-center';
+function carregarProdutos(onUpdate) {
+    const produtosRef = collection(db, `artifacts/${shopInstanceAppId}/produtos`);
+    const q = query(produtosRef, orderBy('nome', 'asc'));
     
-    const infoDiv = document.createElement('div');
-    const preco = produto.tipoPreco === 'metro' 
-        ? `R$ ${(produto.precoMetro || 0).toFixed(2).replace('.', ',')}/m²` 
-        : `R$ ${(produto.precoUnidade || 0).toFixed(2).replace('.', ',')}/un`;
-    infoDiv.innerHTML = `<strong>${produto.nome}</strong><div class="meta">${preco}</div>`;
-    itemDiv.appendChild(infoDiv);
-
-    if (getRole() === 'admin') {
-        const adminBtns = document.createElement('div');
-        adminBtns.className = 'flex items-center space-x-1';
-        adminBtns.innerHTML = `<button class="btn-icon-action" title="Editar"><i class="fas fa-edit"></i></button><button class="btn-icon-action text-red-400 hover:text-red-600" title="Excluir"><i class="fas fa-trash"></i></button>`;
-        adminBtns.querySelector('button:first-child').onclick = () => abrirModalEditarProduto(produto.id);
-        adminBtns.querySelector('button:last-child').onclick = () => excluirProduto(produto.id, produto.nome);
-        itemDiv.appendChild(adminBtns);
-    }
-    
-    return itemDiv;
-}
-
-/**
- * Ouve as alterações na coleção de produtos e atualiza a UI.
- */
-function carregarProdutos() {
-    const path = `artifacts/${shopInstanceAppId}/produtos`;
-    onSnapshot(query(collection(db, path)), (snap) => {
-        const listaEl = document.getElementById('listaProdutos');
-        produtosCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+    onSnapshot(q, (snapshot) => {
+        produtosCache = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         
-        if (listaEl) {
-            listaEl.innerHTML = '';
-            if (produtosCache.length > 0) {
-                produtosCache.forEach(p => listaEl.appendChild(createProductListItem(p)));
-            } else {
-                listaEl.innerHTML = '<p class="text-sm text-center py-3">Nenhum produto registado.</p>';
-            }
-        }
-    }, e => {
-        console.error("Erro ao carregar produtos:", e);
-        showNotification({ message: "Erro ao carregar produtos.", type: 'error' });
+        if (onUpdate) onUpdate();
     });
 }
 
 /**
- * Manipula a submissão do formulário de registo de produtos.
- * @param {Event} e - O evento de submissão.
+ * Valida os dados do produto
  */
-async function handleCadastroProduto(e) {
-    e.preventDefault();
-    const form = e.target;
-    const dados = {
-        nome: form.produtoNome.value,
-        tipoPreco: form.produtoTipoPreco.value,
-        precoUnidade: parseFloat(form.produtoPrecoUnidade.value) || 0,
-        precoMetro: parseFloat(form.produtoPrecoMetro.value) || 0,
-        descricao: form.produtoDescricao.value,
-        criadoEm: Timestamp.now()
-    };
-    
-    if (!dados.nome.trim()) {
-        showNotification({ message: "Nome do produto é obrigatório.", type: "warning" });
-        return;
+function validarProduto(dados) {
+    if (!dados.nome || dados.nome.trim().length < 3) {
+        throw new Error('Nome deve ter pelo menos 3 caracteres');
     }
+    
+    if (dados.tipoPreco === 'unidade' && (!dados.precoUnidade || dados.precoUnidade <= 0)) {
+        throw new Error('Preço unitário inválido');
+    }
+    
+    if (dados.tipoPreco === 'metro' && (!dados.precoMetro || dados.precoMetro <= 0)) {
+        throw new Error('Preço por metro quadrado inválido');
+    }
+    
+    return true;
+}
 
+/**
+ * Salva um novo produto ou atualiza um existente
+ */
+async function salvarProduto(dados) {
     try {
-        await addDoc(collection(db, `artifacts/${shopInstanceAppId}/produtos`), dados);
-        showNotification({ message: 'Produto registado!', type: 'success' });
-        form.reset();
-        togglePrecoFields();
-    } catch (err) {
-        console.error("Erro ao registar produto:", err);
-        showNotification({ message: 'Erro ao registar produto.', type: 'error' });
+        validarProduto(dados);
+        
+        const produtoData = {
+            ...dados,
+            nome: dados.nome.trim(),
+            ultimaAtualizacao: Timestamp.now()
+        };
+        
+        if (produtoSelecionadoId) {
+            await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, produtoSelecionadoId), produtoData);
+            showNotification({
+                message: 'Produto atualizado com sucesso!',
+                type: 'success'
+            });
+        } else {
+            produtoData.criadoEm = Timestamp.now();
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/produtos`), produtoData);
+            showNotification({
+                message: 'Produto registrado com sucesso!',
+                type: 'success'
+            });
+        }
+        
+        // Limpar estado
+        produtoSelecionadoId = null;
+        
+    } catch (error) {
+        console.error('Erro ao salvar produto:', error);
+        showNotification({
+            message: error.message || 'Erro ao salvar produto',
+            type: 'error'
+        });
     }
 }
 
-// --- Funções dos Modais ---
+/**
+ * Exclui um produto
+ */
+async function excluirProduto(produtoId) {
+    try {
+        // Verificar se o produto está em uso em algum pedido
+        const pedidosRef = collection(db, `artifacts/${shopInstanceAppId}/pedidos`);
+        const q = query(pedidosRef, where('itens', 'array-contains', { produtoId }));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            throw new Error('Não é possível excluir um produto que está em uso em pedidos');
+        }
+        
+        await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, produtoId));
+        
+        showNotification({
+            message: 'Produto excluído com sucesso!',
+            type: 'success'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+        showNotification({
+            message: error.message || 'Erro ao excluir produto',
+            type: 'error'
+        });
+    }
+}
 
+/**
+ * Renderiza a lista de produtos
+ */
+function renderizarListaProdutos() {
+    const container = document.getElementById('listaProdutos');
+    if (!container) return;
+    
+    if (produtosCache.length === 0) {
+        container.innerHTML = '<p class="text-sm text-center py-3">Nenhum produto registrado.</p>';
+        return;
+    }
+    
+    container.innerHTML = produtosCache.map(produto => `
+        <div class="produto-item p-3 border rounded-md hover:bg-gray-50">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h4 class="font-medium">${produto.nome}</h4>
+                    <p class="text-sm text-gray-600">
+                        ${produto.tipoPreco === 'metro' ? 
+                            `R$ ${produto.precoMetro.toFixed(2)}/m²` : 
+                            `R$ ${produto.precoUnidade.toFixed(2)}/unidade`}
+                    </p>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="abrirModalEditarProduto('${produto.id}')" 
+                            class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="excluirProduto('${produto.id}')" 
+                            class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            ${produto.descricao ? `<p class="text-sm mt-2">${produto.descricao}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+/**
+ * Alterna os campos de preço baseado no tipo de precificação
+ */
+function togglePrecoFields() {
+    const tipoPreco = document.getElementById('produtoTipoPreco').value;
+    const precoUnidadeFields = document.getElementById('precoUnidadeFields');
+    const precoMetroFields = document.getElementById('precoMetroFields');
+    
+    if (tipoPreco === 'unidade') {
+        precoUnidadeFields.classList.remove('hidden');
+        precoMetroFields.classList.add('hidden');
+    } else {
+        precoUnidadeFields.classList.add('hidden');
+        precoMetroFields.classList.remove('hidden');
+    }
+}
+
+/**
+ * Alterna os campos de preço no formulário de edição
+ */
+function togglePrecoFieldsEditar() {
+    const tipoPreco = document.getElementById('produtoTipoPrecoEditar').value;
+    const precoUnidadeFields = document.getElementById('precoUnidadeFieldsEditar');
+    const precoMetroFields = document.getElementById('precoMetroFieldsEditar');
+    
+    if (tipoPreco === 'unidade') {
+        precoUnidadeFields.classList.remove('hidden');
+        precoMetroFields.classList.add('hidden');
+    } else {
+        precoUnidadeFields.classList.add('hidden');
+        precoMetroFields.classList.remove('hidden');
+    }
+}
+
+/**
+ * Abre o modal de edição de produto
+ */
 function abrirModalEditarProduto(produtoId) {
-    const p = produtosCache.find(prod => prod.id === produtoId);
-    if (!p) return;
-    document.getElementById('produtoIdParaEditar').value = p.id;
-    document.getElementById('produtoNomeEditar').value = p.nome;
-    document.getElementById('produtoDescricaoEditar').value = p.descricao;
-    document.getElementById('produtoTipoPrecoEditar').value = p.tipoPreco;
-    togglePrecoFieldsEditar(); // Garante que os campos de preço corretos são exibidos
-    document.getElementById('produtoPrecoUnidadeEditar').value = p.precoUnidade;
-    document.getElementById('produtoPrecoMetroEditar').value = p.precoMetro;
+    const produto = produtosCache.find(p => p.id === produtoId);
+    if (!produto) return;
+    
+    produtoSelecionadoId = produtoId;
+    
+    document.getElementById('produtoIdParaEditar').value = produto.id;
+    document.getElementById('produtoNomeEditar').value = produto.nome;
+    document.getElementById('produtoTipoPrecoEditar').value = produto.tipoPreco;
+    document.getElementById('produtoPrecoUnidadeEditar').value = produto.precoUnidade || '';
+    document.getElementById('produtoPrecoMetroEditar').value = produto.precoMetro || '';
+    document.getElementById('produtoDescricaoEditar').value = produto.descricao || '';
+    
+    togglePrecoFieldsEditar();
     abrirModalEspecifico('modalEditarProdutoOverlay');
 }
 
-async function handleSalvarEdicaoProduto(e) {
-    e.preventDefault();
-    const form = e.target;
-    const id = form.produtoIdParaEditar.value;
-    const dados = {
-        nome: form.produtoNomeEditar.value,
-        tipoPreco: form.produtoTipoPrecoEditar.value,
-        precoUnidade: parseFloat(form.produtoPrecoUnidadeEditar.value) || 0,
-        precoMetro: parseFloat(form.produtoPrecoMetroEditar.value) || 0,
-        descricao: form.produtoDescricaoEditar.value
-    };
-    
-    try {
-        await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id), dados);
-        showNotification({ message: 'Produto atualizado!', type: 'success' });
-        fecharModalEspecifico('modalEditarProdutoOverlay');
-    } catch (err) {
-        showNotification({ message: 'Erro ao atualizar produto.', type: 'error' });
-        console.error(err);
-    }
-}
-
-function excluirProduto(id, nome) {
-    showNotification({
-        message: `Tem a certeza que deseja excluir o produto ${nome}?`,
-        type: 'confirm-delete',
-        onConfirm: async () => {
-            try {
-                await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/produtos`, id));
-                showNotification({ message: 'Produto excluído.', type: 'success' });
-            } catch (err) {
-                showNotification({ message: 'Erro ao excluir produto.', type: 'error' });
-                console.error(err);
-            }
-        }
-    });
-}
-
-// --- Funções Auxiliares de UI ---
-
-function togglePrecoFields() {
-    const t = document.getElementById('produtoTipoPreco')?.value;
-    document.getElementById('precoUnidadeFields').classList.toggle('hidden', t === 'metro');
-    document.getElementById('precoMetroFields').classList.toggle('hidden', t === 'unidade');
-}
-
-function togglePrecoFieldsEditar() {
-    const t = document.getElementById('produtoTipoPrecoEditar')?.value;
-    document.getElementById('precoUnidadeFieldsEditar').classList.toggle('hidden', t === 'metro');
-    document.getElementById('precoMetroFieldsEditar').classList.toggle('hidden', t === 'unidade');
-}
-
 /**
- * Inicializa o módulo de produtos.
- * @param {object} deps - Dependências de outros módulos.
+ * Inicializa o módulo de produtos
  */
 export function init(deps) {
     getRole = deps.getRole;
     
-    carregarProdutos();
+    carregarProdutos(() => {
+        renderizarListaProdutos();
+    });
 
     // Listeners de eventos
-    document.getElementById('formCadastrarProduto')?.addEventListener('submit', handleCadastroProduto);
-    document.getElementById('formEditarProduto')?.addEventListener('submit', handleSalvarEdicaoProduto);
+    document.getElementById('formCadastrarProduto')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const dados = {
+            nome: formData.get('produtoNome'),
+            tipoPreco: formData.get('produtoTipoPreco'),
+            precoUnidade: formData.get('produtoPrecoUnidade') ? parseFloat(formData.get('produtoPrecoUnidade')) : null,
+            precoMetro: formData.get('produtoPrecoMetro') ? parseFloat(formData.get('produtoPrecoMetro')) : null,
+            descricao: formData.get('produtoDescricao')
+        };
+        await salvarProduto(dados);
+        e.target.reset();
+    });
+    
+    document.getElementById('formEditarProduto')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const dados = {
+            nome: formData.get('produtoNomeEditar'),
+            tipoPreco: formData.get('produtoTipoPrecoEditar'),
+            precoUnidade: formData.get('produtoPrecoUnidadeEditar') ? parseFloat(formData.get('produtoPrecoUnidadeEditar')) : null,
+            precoMetro: formData.get('produtoPrecoMetroEditar') ? parseFloat(formData.get('produtoPrecoMetroEditar')) : null,
+            descricao: formData.get('produtoDescricaoEditar')
+        };
+        await salvarProduto(dados);
+        fecharModalEspecifico('modalEditarProdutoOverlay');
+    });
+    
     document.getElementById('produtoTipoPreco')?.addEventListener('change', togglePrecoFields);
     document.getElementById('produtoTipoPrecoEditar')?.addEventListener('change', togglePrecoFieldsEditar);
 
-    // Anexa funções ao objeto window para serem acessíveis por `onclick`
+    // Anexa funções ao objeto window
     window.togglePrecoFields = togglePrecoFields;
     window.togglePrecoFieldsEditar = togglePrecoFieldsEditar;
     window.fecharModalEditarProduto = () => fecharModalEspecifico('modalEditarProdutoOverlay');
+    window.abrirModalEditarProduto = abrirModalEditarProduto;
+    window.excluirProduto = excluirProduto;
 }
 
 // Exporta a cache de produtos para ser usada por outros módulos (ex: pedidos)

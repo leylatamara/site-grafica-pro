@@ -6,7 +6,7 @@
  * e a lógica de interface relacionada com os clientes.
  */
 
-import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp } from './firebase-config.js';
+import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, where, orderBy } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
 // Estado interno do módulo
@@ -94,7 +94,7 @@ function validarEmail(email) {
 
 // Validar telefone
 function validarTelefone(telefone) {
-    const re = /^\(\d{2}\) \d{5}-\d{4}$/;
+    const re = /^\(\d{2}\) \d{4,5}-\d{4}$/;
     return re.test(telefone);
 }
 
@@ -194,79 +194,117 @@ function exibirDetalhesClienteEProcurarPedidos(id) {
 }
 
 /**
- * Ouve as alterações na coleção de clientes no Firestore em tempo real.
- * @param {function} onUpdate - Callback a ser executado quando os dados são atualizados.
+ * Carrega os clientes do Firestore
  */
 function carregarClientes(onUpdate) {
-    const path = `artifacts/${shopInstanceAppId}/clientes`;
-    onSnapshot(query(collection(db, path)), (snap) => {
-        clientesCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+    const clientesRef = collection(db, `artifacts/${shopInstanceAppId}/clientes`);
+    const q = query(clientesRef, orderBy('nome', 'asc'));
+    
+    onSnapshot(q, (snapshot) => {
+        clientesCache = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
         if (onUpdate) onUpdate();
-    }, e => {
-        console.error("Erro ao carregar clientes:", e);
-        showNotification({ message: "Erro ao carregar clientes.", type: 'error' });
     });
 }
 
 /**
- * Manipula a submissão do formulário de registo de clientes.
- * @param {Event} e - O evento de submissão do formulário.
+ * Valida os dados do cliente
  */
-async function handleCadastroCliente(e) {
-    e.preventDefault();
-    const form = e.target;
-    
-    // Sanitizar e validar inputs
-    const nome = sanitizarInput(form.clienteNome.value.trim());
-    const tipoCliente = form.clienteTipo.value;
-    const telefone = form.clienteTelefone.value.trim();
-    const email = form.clienteEmail.value.trim();
-    const cpfCnpj = form.clienteCpfCnpj.value.trim();
-    const endereco = sanitizarInput(form.clienteEndereco.value.trim());
-    
-    // Validações
-    if (!nome) {
-        showNotification({ message: "O nome do cliente é obrigatório.", type: 'warning' });
-        return;
+function validarCliente(dados) {
+    if (!dados.nome || dados.nome.trim().length < 3) {
+        throw new Error('Nome deve ter pelo menos 3 caracteres');
     }
     
-    if (telefone && !validarTelefone(telefone)) {
-        showNotification({ message: "Formato de telefone inválido. Use (99) 99999-9999", type: 'warning' });
-        return;
-    }
-    
-    if (email && !validarEmail(email)) {
-        showNotification({ message: "Email inválido.", type: 'warning' });
-        return;
-    }
-    
-    if (cpfCnpj) {
+    if (dados.cpfCnpj) {
+        const cpfCnpj = dados.cpfCnpj.replace(/[^\d]/g, '');
         if (cpfCnpj.length === 11 && !validarCPF(cpfCnpj)) {
-            showNotification({ message: "CPF inválido.", type: 'warning' });
-            return;
-        } else if (cpfCnpj.length === 14 && !validarCNPJ(cpfCnpj)) {
-            showNotification({ message: "CNPJ inválido.", type: 'warning' });
-            return;
+            throw new Error('CPF inválido');
+        }
+        if (cpfCnpj.length === 14 && !validarCNPJ(cpfCnpj)) {
+            throw new Error('CNPJ inválido');
         }
     }
     
-    const data = {
-        nome,
-        tipoCliente,
-        telefone,
-        email,
-        cpfCnpj,
-        endereco,
-        criadoEm: Timestamp.now()
-    };
+    if (dados.email && !validarEmail(dados.email)) {
+        throw new Error('Email inválido');
+    }
+    
+    if (dados.telefone && !validarTelefone(dados.telefone)) {
+        throw new Error('Telefone inválido');
+    }
+    
+    return true;
+}
 
+/**
+ * Salva um novo cliente ou atualiza um existente
+ */
+async function salvarCliente(dados) {
     try {
-        await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), data);
-        showNotification({ message: 'Cliente registado com sucesso!', type: 'success' });
-        form.reset();
-    } catch (err) {
-        console.error("Erro ao registar cliente:", err);
-        showNotification({ message: 'Erro ao registar cliente. Por favor, tente novamente.', type: 'error' });
+        validarCliente(dados);
+        
+        const clienteData = {
+            ...dados,
+            nome: dados.nome.trim(),
+            ultimaAtualizacao: Timestamp.now()
+        };
+        
+        if (clienteSelecionadoId) {
+            await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/clientes`, clienteSelecionadoId), clienteData);
+            showNotification({
+                message: 'Cliente atualizado com sucesso!',
+                type: 'success'
+            });
+        } else {
+            clienteData.criadoEm = Timestamp.now();
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/clientes`), clienteData);
+            showNotification({
+                message: 'Cliente registrado com sucesso!',
+                type: 'success'
+            });
+        }
+        
+        // Limpar estado
+        clienteSelecionadoId = null;
+        
+    } catch (error) {
+        console.error('Erro ao salvar cliente:', error);
+        showNotification({
+            message: error.message || 'Erro ao salvar cliente',
+            type: 'error'
+        });
+    }
+}
+
+/**
+ * Exclui um cliente
+ */
+async function excluirCliente(clienteId) {
+    try {
+        // Verificar se o cliente tem pedidos
+        const pedidos = getPedidosCache();
+        const temPedidos = pedidos.some(p => p.clienteId === clienteId);
+        
+        if (temPedidos) {
+            throw new Error('Não é possível excluir um cliente que possui pedidos');
+        }
+        
+        await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/clientes`, clienteId));
+        
+        showNotification({
+            message: 'Cliente excluído com sucesso!',
+            type: 'success'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao excluir cliente:', error);
+        showNotification({
+            message: error.message || 'Erro ao excluir cliente',
+            type: 'error'
+        });
     }
 }
 
@@ -307,22 +345,6 @@ async function handleSalvarEdicaoCliente(e) {
     }
 }
 
-function excluirCliente(id, nome) {
-    showNotification({
-        message: `Tem a certeza que deseja excluir o cliente ${nome}?`,
-        type: 'confirm-delete',
-        onConfirm: async () => {
-            try {
-                await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/clientes`, id));
-                showNotification({ message: 'Cliente excluído com sucesso.', type: 'success' });
-            } catch (err) {
-                showNotification({ message: 'Erro ao excluir cliente.', type: 'error' });
-                console.error(err);
-            }
-        }
-    });
-}
-
 /**
  * Inicializa o módulo de clientes, configura listeners e carrega dados.
  * @param {object} deps - Dependências necessárias de outros módulos.
@@ -338,12 +360,27 @@ export function init(deps) {
 
     // Listeners de eventos
     document.getElementById('pesquisaClienteInput')?.addEventListener('input', renderizarListaClientes);
-    document.getElementById('formCadastrarCliente')?.addEventListener('submit', handleCadastroCliente);
+    document.getElementById('formCadastrarCliente')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const dados = {
+            nome: formData.get('clienteNome'),
+            tipoCliente: formData.get('clienteTipo'),
+            telefone: formData.get('clienteTelefone'),
+            email: formData.get('clienteEmail'),
+            cpfCnpj: formData.get('clienteCpfCnpj'),
+            endereco: formData.get('clienteEndereco')
+        };
+        await salvarCliente(dados);
+        e.target.reset();
+    });
+    
     document.getElementById('formEditarCliente')?.addEventListener('submit', handleSalvarEdicaoCliente);
     
     // Anexa funções ao objeto window para serem acessíveis por `onclick`
     window.abrirModalEditarCliente = abrirModalEditarCliente;
     window.fecharModalEditarCliente = () => fecharModalEspecifico('modalEditarClienteOverlay');
+    window.excluirCliente = excluirCliente;
 }
 
 // Retorna a cache de clientes para outros módulos que precisem dela.

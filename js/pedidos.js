@@ -5,7 +5,7 @@
  * Gere todas as operações e a lógica de UI para os pedidos.
  */
 
-import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, setDoc } from './firebase-config.js';
+import { db, shopInstanceAppId, collection, addDoc, doc, onSnapshot, query, updateDoc, deleteDoc, Timestamp, setDoc, where, orderBy } from './firebase-config.js';
 import { showNotification, abrirModalEspecifico, fecharModalEspecifico } from './ui.js';
 
 // Estado interno do módulo
@@ -135,14 +135,192 @@ function carregarUltimosPedidos() {
 
 // --- CARREGAMENTO DE DADOS ---
 function carregarTodosPedidos(onUpdate) {
-    const path = `artifacts/${shopInstanceAppId}/pedidos`;
-    onSnapshot(query(collection(db, path)), (snap) => {
-        todosOsPedidosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const pedidosRef = collection(db, `artifacts/${shopInstanceAppId}/pedidos`);
+    const q = query(pedidosRef, orderBy('dataPedido', 'desc'));
+    
+    onSnapshot(q, (snapshot) => {
+        todosOsPedidosCache = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            dataPedido: doc.data().dataPedido,
+            dataEntrega: doc.data().dataEntrega
+        }));
+        
         if (onUpdate) onUpdate();
-    }, e => { 
-        console.error("Erro ao carregar pedidos:", e); 
-        showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }); 
     });
+}
+
+/**
+ * Calcula o valor total de um pedido
+ */
+function calcularValorTotalPedido(itens) {
+    return itens.reduce((total, item) => {
+        const valorItem = calcularValorItem(item);
+        return total + valorItem;
+    }, 0);
+}
+
+/**
+ * Calcula o valor de um item do pedido
+ */
+function calcularValorItem(item) {
+    if (!item.quantidade || !item.produtoPreco) return 0;
+    
+    let valorBase = item.quantidade * item.produtoPreco;
+    
+    // Aplicar desconto se houver
+    if (item.desconto) {
+        valorBase = valorBase * (1 - (item.desconto / 100));
+    }
+    
+    // Aplicar acréscimo se houver
+    if (item.acrescimo) {
+        valorBase = valorBase * (1 + (item.acrescimo / 100));
+    }
+    
+    return valorBase;
+}
+
+/**
+ * Valida os dados do pedido antes de salvar
+ */
+function validarPedido(dados) {
+    if (!dados.clienteId || !dados.clienteNome) {
+        throw new Error('Cliente é obrigatório');
+    }
+    
+    if (!dados.itens || dados.itens.length === 0) {
+        throw new Error('Pedido deve ter pelo menos um item');
+    }
+    
+    if (!dados.dataEntrega) {
+        throw new Error('Data de entrega é obrigatória');
+    }
+    
+    // Validar data de entrega
+    const dataEntrega = new Date(dados.dataEntrega);
+    const hoje = new Date();
+    if (dataEntrega < hoje) {
+        throw new Error('Data de entrega não pode ser anterior a hoje');
+    }
+    
+    // Validar itens
+    dados.itens.forEach((item, index) => {
+        if (!item.produtoId || !item.produtoNome) {
+            throw new Error(`Item ${index + 1}: Produto é obrigatório`);
+        }
+        if (!item.quantidade || item.quantidade <= 0) {
+            throw new Error(`Item ${index + 1}: Quantidade inválida`);
+        }
+    });
+    
+    // Validar pagamentos
+    if (dados.pagamentos && dados.pagamentos.length > 0) {
+        const totalPago = dados.pagamentos.reduce((sum, p) => sum + (p.valor || 0), 0);
+        const valorTotal = calcularValorTotalPedido(dados.itens);
+        
+        if (totalPago > valorTotal) {
+            throw new Error('Valor total pago não pode ser maior que o valor do pedido');
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Salva um novo pedido ou atualiza um existente
+ */
+async function salvarPedido(dados) {
+    try {
+        validarPedido(dados);
+        
+        const pedidoData = {
+            ...dados,
+            dataPedido: Timestamp.now(),
+            valorTotal: calcularValorTotalPedido(dados.itens),
+            vendedorId: getUserId(),
+            vendedorNome: getUserName(),
+            status: dados.status || 'Aguardando Aprovação',
+            ultimaAtualizacao: Timestamp.now()
+        };
+        
+        if (editingOrderId) {
+            await updateDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, editingOrderId), pedidoData);
+            showNotification({
+                message: 'Pedido atualizado com sucesso!',
+                type: 'success'
+            });
+        } else {
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/pedidos`), pedidoData);
+            showNotification({
+                message: 'Pedido criado com sucesso!',
+                type: 'success'
+            });
+        }
+        
+        // Limpar estado
+        editingOrderId = null;
+        pedidoImagemBase64 = null;
+        
+        // Atualizar interface
+        mostrarSecao('telaInicial', true);
+        atualizarDashboard();
+        
+    } catch (error) {
+        console.error('Erro ao salvar pedido:', error);
+        showNotification({
+            message: error.message || 'Erro ao salvar pedido',
+            type: 'error'
+        });
+    }
+}
+
+/**
+ * Atualiza o status de um pedido
+ */
+async function atualizarStatusPedido(pedidoId, novoStatus) {
+    try {
+        const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+        await updateDoc(pedidoRef, {
+            status: novoStatus,
+            ultimaAtualizacao: Timestamp.now()
+        });
+        
+        showNotification({
+            message: 'Status atualizado com sucesso!',
+            type: 'success'
+        });
+        
+        atualizarDashboard();
+    } catch (error) {
+        console.error('Erro ao atualizar status:', error);
+        showNotification({
+            message: 'Erro ao atualizar status do pedido',
+            type: 'error'
+        });
+    }
+}
+
+/**
+ * Exclui um pedido
+ */
+async function excluirPedido(pedidoId) {
+    try {
+        await deleteDoc(doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId));
+        
+        showNotification({
+            message: 'Pedido excluído com sucesso!',
+            type: 'success'
+        });
+        
+        atualizarDashboard();
+    } catch (error) {
+        console.error('Erro ao excluir pedido:', error);
+        showNotification({
+            message: 'Erro ao excluir pedido',
+            type: 'error'
+        });
+    }
 }
 
 // --- LÓGICA DO FORMULÁRIO DE PEDIDO ---
@@ -207,14 +385,38 @@ export function init(deps) {
         renderizarListaCompletaPedidos();
     });
 
-    // Anexa funções ao window para serem chamadas pelo HTML
-    window.prepararEdicaoPedido = (p) => { /* ... */ };
-    window.abrirDetalhesPedidoNovaGuia = (p) => { /* ... */ };
-    window.marcarComoEntregue = (id) => { /* ... */ };
-    window.excluirPedido = (id, nome) => { /* ... */ };
-    window.abrirModalMudarStatus = (id, num, cli, stat) => { /* ... */ };
+    // Configurar listeners de eventos
+    document.getElementById('formNovoPedido')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const dados = {
+            clienteId: formData.get('pedidoClienteId'),
+            clienteNome: formData.get('pedidoClienteNome'),
+            itens: coletarItensPedido(),
+            pagamentos: coletarPagamentos(),
+            dataEntrega: formData.get('pedidoDataEntrega'),
+            horaEntrega: formData.get('pedidoHoraEntrega'),
+            status: formData.get('pedidoStatus'),
+            descricaoGeral: formData.get('pedidoDescricaoGeral'),
+            imagemPreview: pedidoImagemBase64
+        };
+        
+        await salvarPedido(dados);
+    });
+
+    // Anexar funções ao objeto window
+    window.prepararEdicaoPedido = prepararEdicaoPedido;
+    window.abrirDetalhesPedidoNovaGuia = abrirDetalhesPedidoNovaGuia;
+    window.marcarComoEntregue = marcarComoEntregue;
+    window.excluirPedido = excluirPedido;
+    window.abrirModalMudarStatus = abrirModalMudarStatus;
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
     window.adicionarItemPedidoForm = adicionarItemPedidoForm;
+    window.removerItemPedido = removerItemPedido;
+    window.calcularValorItem = calcularValorItem;
+    window.adicionarPagamentoForm = adicionarPagamentoForm;
+    window.removerPagamento = removerPagamento;
+    window.atualizarTotaisPedido = atualizarTotaisPedido;
 }
 
 export const getPedidos = () => todosOsPedidosCache;
