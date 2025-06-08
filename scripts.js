@@ -411,9 +411,15 @@ async function mostrarSecao(idSecao, isMenuLink = false) {
             return;
         }
 
-        abrirModalEspecifico('modalGerenciarPermissoesOverlay');
-        await carregarPermissoesSetor();
-        return;
+        try {
+            abrirModalEspecifico('modalGerenciarPermissoesOverlay');
+            await carregarPermissoesSetor();
+            return;
+        } catch (error) {
+            console.error('Erro ao abrir modal de permissões:', error);
+            exibirMensagem('Erro ao abrir seção. Por favor, tente novamente.', 'error');
+            return;
+        }
     }
     
     // Verificar permissão para outras seções
@@ -742,13 +748,21 @@ document.addEventListener('DOMContentLoaded', () => {
 // Função para inicializar as permissões
 async function inicializarPermissoes() {
     try {
+        console.log('Iniciando inicialização de permissões');
+        
         // Verificar se já existem permissões para cada setor
         const setores = ['admin', 'vendedor', 'designer', 'impressor', 'producao'];
+        const batch = writeBatch(db);
+        
         for (const setor of setores) {
+            console.log('Verificando permissões para o setor:', setor);
+            
             const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
             const permissoesDoc = await getDoc(permissoesRef);
             
             if (!permissoesDoc.exists()) {
+                console.log('Criando permissões padrão para o setor:', setor);
+                
                 // Definir permissões padrão para cada setor
                 let permissoesPadrao = ['telaInicial'];
                 
@@ -770,35 +784,70 @@ async function inicializarPermissoes() {
                         break;
                 }
                 
-                await setDoc(permissoesRef, { paginas: permissoesPadrao });
-                console.log('Permissões padrão criadas para o setor:', setor, permissoesPadrao);
+                batch.set(permissoesRef, { paginas: permissoesPadrao });
+                console.log('Permissões padrão definidas para o setor:', setor, permissoesPadrao);
             }
+        }
+        
+        // Executar o batch se houver alterações
+        if (batch._ops.length > 0) {
+            console.log('Salvando permissões padrão no banco de dados');
+            await batch.commit();
+            console.log('Permissões padrão salvas com sucesso');
+        } else {
+            console.log('Todas as permissões já existem, nenhuma alteração necessária');
         }
     } catch (error) {
         console.error('Erro ao inicializar permissões:', error);
+        throw error; // Propagar o erro para ser tratado pela função chamadora
     }
 }
 
 // Função para carregar as permissões do setor selecionado
 async function carregarPermissoesSetor() {
     try {
-        const setor = document.getElementById('selectSetorPermissao').value;
+        console.log('Iniciando carregamento de permissões do setor');
+        
+        const setor = document.getElementById('selectSetorPermissao')?.value;
+        if (!setor) {
+            console.error('Setor não encontrado no select');
+            throw new Error('Setor não encontrado');
+        }
+        
+        console.log('Carregando permissões para o setor:', setor);
+        
         const permissoesRef = doc(db, `artifacts/${shopInstanceAppId}/permissoes`, setor);
         const permissoesDoc = await getDoc(permissoesRef);
         
         let permissoes = [];
         if (permissoesDoc.exists()) {
             permissoes = permissoesDoc.data().paginas || [];
+            console.log('Permissões encontradas:', permissoes);
+        } else {
+            console.log('Nenhuma permissão encontrada para o setor, usando padrão');
+            // Se não existir, criar permissões padrão
+            await inicializarPermissoes();
+            const docAtualizado = await getDoc(permissoesRef);
+            if (docAtualizado.exists()) {
+                permissoes = docAtualizado.data().paginas || [];
+            }
         }
         
-        document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]').forEach(cb => {
+        const checkboxes = document.querySelectorAll('#permissoesPaginasContainer input[type=checkbox]');
+        if (!checkboxes.length) {
+            console.error('Checkboxes de permissões não encontrados');
+            throw new Error('Elementos de permissões não encontrados');
+        }
+        
+        checkboxes.forEach(cb => {
             cb.checked = permissoes.includes(cb.value);
         });
         
-        console.log('Permissões carregadas para o setor:', setor, permissoes);
+        console.log('Permissões carregadas com sucesso para o setor:', setor);
     } catch (error) {
         console.error('Erro ao carregar permissões:', error);
         exibirMensagem('Erro ao carregar permissões. Por favor, tente novamente.', 'error');
+        throw error; // Propagar o erro para ser tratado pela função chamadora
     }
 }
 
