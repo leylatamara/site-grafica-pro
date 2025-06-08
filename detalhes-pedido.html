@@ -226,166 +226,6 @@
             return pedidoId;
         }
 
-        // Função para marcar item como impresso
-        async function marcarItemComoImpresso(pedidoId, itemIndex) {
-            try {
-                if (!auth.currentUser) {
-                    await signInAnonymously(auth);
-                }
-
-                const userName = localStorage.getItem('loggedInUserName');
-                if (!userName) {
-                    alert('Nome do usuário não encontrado');
-                    return;
-                }
-
-                // Validar e corrigir o ID do pedido
-                pedidoId = validarPedidoId(pedidoId);
-                console.log('ID do pedido após validação:', pedidoId);
-
-                // Tentar diferentes caminhos para o pedido
-                const caminhos = [
-                    ['pedidos', pedidoId],
-                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
-                    ['pedidos', shopInstanceAppId, pedidoId]
-                ];
-
-                let pedidoRef = null;
-                let pedido = null;
-
-                for (const caminho of caminhos) {
-                    try {
-                        console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
-                        const ref = doc(db, ...caminho);
-                        const pedidoDoc = await getDoc(ref);
-                        
-                        if (pedidoDoc.exists()) {
-                            console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
-                            pedidoRef = ref;
-                            pedido = pedidoDoc.data();
-                            break;
-                        }
-                    } catch (error) {
-                        console.log(`Erro ao tentar caminho ${caminho.join('/')}:`, error);
-                    }
-                }
-
-                if (!pedidoRef || !pedido) {
-                    alert('Pedido não encontrado');
-                    return;
-                }
-
-                if (!pedido.itens || !pedido.itens[itemIndex]) {
-                    alert('Item não encontrado no pedido');
-                    return;
-                }
-
-                const item = pedido.itens[itemIndex];
-                if (!item.productionSteps) {
-                    item.productionSteps = {};
-                }
-                if (!item.productionSteps.impressao) {
-                    item.productionSteps.impressao = {};
-                }
-
-                item.productionSteps.impressao = {
-                    concluido: true,
-                    responsavel: userName,
-                    data: new Date()
-                };
-
-                await updateDoc(pedidoRef, {
-                    [`itens.${itemIndex}.productionSteps.impressao`]: item.productionSteps.impressao
-                });
-
-                alert('Item marcado como impresso com sucesso!');
-                carregarDadosPedido();
-            } catch (error) {
-                console.error('Erro ao marcar item como impresso:', error);
-                alert('Erro ao marcar item como impresso: ' + error.message);
-            }
-        }
-
-        // Função para marcar item como acabado
-        async function marcarItemComoAcabado(pedidoId, itemIndex) {
-            try {
-                if (!auth.currentUser) {
-                    await signInAnonymously(auth);
-                }
-
-                const userName = localStorage.getItem('loggedInUserName');
-                if (!userName) {
-                    alert('Nome do usuário não encontrado');
-                    return;
-                }
-
-                // Validar e corrigir o ID do pedido
-                pedidoId = validarPedidoId(pedidoId);
-                console.log('ID do pedido após validação:', pedidoId);
-
-                // Tentar diferentes caminhos para o pedido
-                const caminhos = [
-                    ['pedidos', pedidoId],
-                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
-                    ['pedidos', shopInstanceAppId, pedidoId]
-                ];
-
-                let pedidoRef = null;
-                let pedido = null;
-
-                for (const caminho of caminhos) {
-                    try {
-                        console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
-                        const ref = doc(db, ...caminho);
-                        const pedidoDoc = await getDoc(ref);
-                        
-                        if (pedidoDoc.exists()) {
-                            console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
-                            pedidoRef = ref;
-                            pedido = pedidoDoc.data();
-                            break;
-                        }
-                    } catch (error) {
-                        console.log(`Erro ao tentar caminho ${caminho.join('/')}:`, error);
-                    }
-                }
-
-                if (!pedidoRef || !pedido) {
-                    alert('Pedido não encontrado');
-                    return;
-                }
-
-                if (!pedido.itens || !pedido.itens[itemIndex]) {
-                    alert('Item não encontrado no pedido');
-                    return;
-                }
-
-                const item = pedido.itens[itemIndex];
-                if (!item.productionSteps) {
-                    item.productionSteps = {};
-                }
-                if (!item.productionSteps.acabamento) {
-                    item.productionSteps.acabamento = {};
-                }
-
-                item.productionSteps.acabamento = {
-                    concluido: true,
-                    responsavel: userName,
-                    data: new Date()
-                };
-
-                await updateDoc(pedidoRef, {
-                    [`itens.${itemIndex}.productionSteps.acabamento`]: item.productionSteps.acabamento
-                });
-
-                alert('Item marcado como acabado com sucesso!');
-                carregarDadosPedido();
-            } catch (error) {
-                console.error('Erro ao marcar item como acabado:', error);
-                alert('Erro ao marcar item como acabado: ' + error.message);
-            }
-        }
-
         // Função para carregar os dados do pedido
         async function carregarDadosPedido() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -400,10 +240,6 @@
                 alert('ID do pedido não fornecido');
                 return;
             }
-
-            // Validar e corrigir o ID do pedido
-            pedidoId = validarPedidoId(pedidoId);
-            console.log('ID do pedido após validação:', pedidoId);
 
             try {
                 // Fazer login anônimo se necessário
@@ -421,43 +257,22 @@
 
                 console.log('Usuário logado:', { role: userRole, name: userName });
 
-                // Tentar diferentes caminhos para o pedido
-                const caminhos = [
-                    ['pedidos', pedidoId],
-                    ['artifacts', shopInstanceAppId, 'pedidos', pedidoId],
-                    ['pedidos', shopInstanceAppId, pedidoId]
-                ];
+                // Usar o caminho correto para o pedido
+                const pedidoRef = doc(db, 'artifacts', shopInstanceAppId, 'pedidos', pedidoId);
+                console.log('Caminho do pedido:', pedidoRef.path);
+                
+                const pedidoDoc = await getDoc(pedidoRef);
+                console.log('Pedido existe:', pedidoDoc.exists());
 
-                let pedidoEncontrado = false;
-                let pedido = null;
-                let pedidoRef = null;
-
-                for (const caminho of caminhos) {
-                    try {
-                        console.log(`Tentando buscar pedido no caminho: ${caminho.join('/')}`);
-                        const ref = doc(db, ...caminho);
-                        const pedidoDoc = await getDoc(ref);
-                        
-                        if (pedidoDoc.exists()) {
-                            console.log(`Pedido encontrado no caminho: ${caminho.join('/')}`);
-                            pedidoRef = ref;
-                            pedido = pedidoDoc.data();
-                            pedidoEncontrado = true;
-                            break;
-                        }
-                    } catch (error) {
-                        console.log(`Erro ao tentar caminho ${caminho.join('/')}:`, error);
-                    }
-                }
-
-                if (!pedidoEncontrado) {
-                    console.error('Pedido não encontrado em nenhum caminho');
+                if (!pedidoDoc.exists()) {
+                    console.error('Pedido não encontrado no caminho:', pedidoRef.path);
                     alert('Pedido não encontrado');
                     return;
                 }
 
+                const pedido = pedidoDoc.data();
                 console.log('Dados do pedido:', pedido);
-                
+
                 // Preencher dados básicos
                 document.getElementById('numeroPedido').textContent = pedido.numeroPedido || `#PED-${pedidoId}`;
                 document.getElementById('nomeCliente').textContent = pedido.clienteNome || '-';
@@ -571,6 +386,124 @@
             } catch (error) {
                 console.error('Erro ao carregar dados do pedido:', error);
                 alert('Erro ao carregar dados do pedido: ' + error.message);
+            }
+        }
+
+        // Função para marcar item como impresso
+        async function marcarItemComoImpresso(pedidoId, itemIndex) {
+            try {
+                if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
+
+                const userName = localStorage.getItem('loggedInUserName');
+                if (!userName) {
+                    alert('Nome do usuário não encontrado');
+                    return;
+                }
+
+                const pedidoRef = doc(db, 'artifacts', shopInstanceAppId, 'pedidos', pedidoId);
+                console.log('Caminho do pedido:', pedidoRef.path);
+                
+                const pedidoDoc = await getDoc(pedidoRef);
+                console.log('Pedido existe:', pedidoDoc.exists());
+
+                if (!pedidoDoc.exists()) {
+                    console.error('Pedido não encontrado no caminho:', pedidoRef.path);
+                    alert('Pedido não encontrado');
+                    return;
+                }
+
+                const pedido = pedidoDoc.data();
+                console.log('Dados do pedido:', pedido);
+
+                if (!pedido.itens || !pedido.itens[itemIndex]) {
+                    alert('Item não encontrado no pedido');
+                    return;
+                }
+
+                const item = pedido.itens[itemIndex];
+                if (!item.productionSteps) {
+                    item.productionSteps = {};
+                }
+                if (!item.productionSteps.impressao) {
+                    item.productionSteps.impressao = {};
+                }
+
+                item.productionSteps.impressao = {
+                    concluido: true,
+                    responsavel: userName,
+                    data: new Date()
+                };
+
+                await updateDoc(pedidoRef, {
+                    [`itens.${itemIndex}.productionSteps.impressao`]: item.productionSteps.impressao
+                });
+
+                alert('Item marcado como impresso com sucesso!');
+                carregarDadosPedido();
+            } catch (error) {
+                console.error('Erro ao marcar item como impresso:', error);
+                alert('Erro ao marcar item como impresso: ' + error.message);
+            }
+        }
+
+        // Função para marcar item como acabado
+        async function marcarItemComoAcabado(pedidoId, itemIndex) {
+            try {
+                if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
+
+                const userName = localStorage.getItem('loggedInUserName');
+                if (!userName) {
+                    alert('Nome do usuário não encontrado');
+                    return;
+                }
+
+                const pedidoRef = doc(db, 'artifacts', shopInstanceAppId, 'pedidos', pedidoId);
+                console.log('Caminho do pedido:', pedidoRef.path);
+                
+                const pedidoDoc = await getDoc(pedidoRef);
+                console.log('Pedido existe:', pedidoDoc.exists());
+
+                if (!pedidoDoc.exists()) {
+                    console.error('Pedido não encontrado no caminho:', pedidoRef.path);
+                    alert('Pedido não encontrado');
+                    return;
+                }
+
+                const pedido = pedidoDoc.data();
+                console.log('Dados do pedido:', pedido);
+
+                if (!pedido.itens || !pedido.itens[itemIndex]) {
+                    alert('Item não encontrado no pedido');
+                    return;
+                }
+
+                const item = pedido.itens[itemIndex];
+                if (!item.productionSteps) {
+                    item.productionSteps = {};
+                }
+                if (!item.productionSteps.acabamento) {
+                    item.productionSteps.acabamento = {};
+                }
+
+                item.productionSteps.acabamento = {
+                    concluido: true,
+                    responsavel: userName,
+                    data: new Date()
+                };
+
+                await updateDoc(pedidoRef, {
+                    [`itens.${itemIndex}.productionSteps.acabamento`]: item.productionSteps.acabamento
+                });
+
+                alert('Item marcado como acabado com sucesso!');
+                carregarDadosPedido();
+            } catch (error) {
+                console.error('Erro ao marcar item como acabado:', error);
+                alert('Erro ao marcar item como acabado: ' + error.message);
             }
         }
 
