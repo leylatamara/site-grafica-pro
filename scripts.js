@@ -1131,3 +1131,126 @@ async function marcarItemComoAcabado(pedidoId, itemIndex) {
 // Expor as funções globalmente
 window.marcarItemComoImpresso = marcarItemComoImpresso;
 window.marcarItemComoAcabado = marcarItemComoAcabado;
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formId = form.id;
+    
+    try {
+        let dados = {};
+        let collectionName = '';
+        
+        switch(formId) {
+            case 'formCadastrarCliente':
+                collectionName = 'clientes';
+                dados = {
+                    nome: document.getElementById('clienteNome').value,
+                    tipoCliente: document.getElementById('clienteTipo').value,
+                    telefone: document.getElementById('clienteTelefone').value,
+                    email: document.getElementById('clienteEmail').value,
+                    cpfCnpj: document.getElementById('clienteCpfCnpj').value,
+                    endereco: document.getElementById('clienteEndereco').value
+                };
+                break;
+                
+            case 'formNovoPedido':
+                collectionName = 'pedidos';
+                dados = {
+                    numeroPedido: await gerarNumeroPedido(),
+                    clienteId: document.getElementById('pedidoClienteId').value,
+                    clienteNome: document.getElementById('pedidoClienteSearch').value,
+                    vendedorId: document.getElementById('pedidoVendedor').value,
+                    dataPedido: new Date(),
+                    dataEntrega: new Date(document.getElementById('pedidoDataEntrega').value + 'T' + document.getElementById('pedidoHoraEntrega').value),
+                    status: document.getElementById('pedidoStatus').value,
+                    descricaoGeral: document.getElementById('pedidoDescricaoGeral').value,
+                    imagemPreview: window.pedidoImagemState.getImagem(),
+                    itens: Array.from(document.querySelectorAll('.item-pedido')).map(item => ({
+                        produtoId: item.querySelector('.produto-select').value,
+                        produtoNome: item.querySelector('.produto-select option:checked').text,
+                        quantidade: parseFloat(item.querySelector('.quantidade-input').value) || 0,
+                        valorUnitario: parseFloat(item.querySelector('.valor-unitario').value) || 0,
+                        valorTotal: parseFloat(item.querySelector('.valor-item-produto').value.replace('R$ ', '').replace(',', '.')) || 0,
+                        observacoes: item.querySelector('.observacoes-input').value
+                    })),
+                    pagamentos: Array.from(document.querySelectorAll('.pagamento-item')).map(pag => ({
+                        forma: pag.querySelector('.forma-pagamento').value,
+                        valor: parseFloat(pag.querySelector('.valor-pagamento').value.replace('R$ ', '').replace(',', '.')) || 0,
+                        data: new Date(pag.querySelector('.data-pagamento').value)
+                    })),
+                    valorTotal: parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ', '').replace(',', '.')) || 0
+                };
+                break;
+                
+            case 'formCadastrarProduto':
+                collectionName = 'produtos';
+                dados = {
+                    nome: document.getElementById('produtoNome').value,
+                    tipoPreco: document.getElementById('produtoTipoPreco').value,
+                    precoUnidade: parseFloat(document.getElementById('produtoPrecoUnidade').value) || 0,
+                    precoMetro: parseFloat(document.getElementById('produtoPrecoMetro').value) || 0,
+                    descricao: document.getElementById('produtoDescricao').value
+                };
+                break;
+                
+            case 'formCadastrarFuncionario':
+                collectionName = 'funcionarios';
+                dados = {
+                    nome: document.getElementById('funcionarioNome').value,
+                    contato: document.getElementById('funcionarioContato').value,
+                    cargo: document.getElementById('funcionarioCargo').value,
+                    codigoAcesso: document.getElementById('funcionarioCodigoAcesso').value
+                };
+                break;
+                
+            case 'formCadastrarFornecedor':
+                collectionName = 'fornecedores';
+                dados = {
+                    nome: document.getElementById('fornecedorNome').value,
+                    contato: document.getElementById('fornecedorContato').value,
+                    tipoMaterial: document.getElementById('fornecedorMaterial').value
+                };
+                break;
+                
+            case 'formNovoClienteRapido':
+                collectionName = 'clientes';
+                dados = {
+                    nome: document.getElementById('clienteRapidoNome').value,
+                    tipoCliente: document.getElementById('clienteRapidoTipo').value,
+                    telefone: document.getElementById('clienteRapidoTelefone').value
+                };
+                break;
+        }
+        
+        if (collectionName) {
+            await addDoc(collection(db, `artifacts/${shopInstanceAppId}/${collectionName}`), dados);
+            exibirMensagem('Registro salvo com sucesso!', 'success');
+            form.reset();
+            
+            // Atualizar listas e estatísticas
+            if (collectionName === 'pedidos') {
+                mostrarSecao('telaInicial', true);
+            } else {
+                const updateFunction = {
+                    'clientes': carregarClientes,
+                    'produtos': carregarProdutos,
+                    'funcionarios': carregarFuncionarios,
+                    'fornecedores': carregarFornecedores
+                }[collectionName];
+                
+                if (updateFunction) {
+                    await updateFunction();
+                }
+            }
+            
+            // Fechar modal se estiver em um
+            if (formId === 'formNovoClienteRapido') {
+                fecharModalNovoClienteRapido();
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        exibirMensagem('Erro ao salvar registro. Por favor, tente novamente.', 'error');
+    }
+}
