@@ -173,39 +173,160 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // Configuração do Firebase
         const firebaseConfig = {
-            apiKey: "AIzaSyDOg6A8HFA_JCP_4iS7JcRCTRgdnzcP4Xk",
-            authDomain: "sistema-grafica-pro.firebaseapp.com",
-            projectId: "sistema-grafica-pro",
-            storageBucket: "sistema-grafica-pro.firebasestorage.app",
-            messagingSenderId: "1043193530848",
-            appId: "1:1043193530848:web:b0effc9640a2e8ed6f8385"
+            apiKey: "AIzaSyDxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx",
+            authDomain: "gestao-impressao.firebaseapp.com",
+            projectId: "gestao-impressao",
+            storageBucket: "gestao-impressao.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:1234567890abcdef"
         };
 
+        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const shopInstanceAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const shopInstanceAppId = 'KepzIFlUZ432Os7';
 
         // Função para formatar data
-        function formatarData(data) {
-            if (!data) return '-';
-            if (data instanceof Date) {
-                return data.toLocaleString('pt-BR');
-            }
-            if (data.seconds) {
-                return new Date(data.seconds * 1000).toLocaleString('pt-BR');
-            }
-            return new Date(data).toLocaleString('pt-BR');
+        function formatarData(timestamp) {
+            if (!timestamp) return '-';
+            const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return data.toLocaleDateString('pt-BR');
         }
 
-        // Função para formatar valor monetário
+        // Função para formatar valor
         function formatarValor(valor) {
             if (!valor) return 'R$ 0,00';
-            return `R$ ${parseFloat(valor).toFixed(2).replace('.', ',')}`;
+            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Função para marcar item como impresso
+        async function marcarItemComoImpresso(pedidoId, itemIndex) {
+            try {
+                console.log('Iniciando marcarItemComoImpresso:', { pedidoId, itemIndex });
+                
+                const userRole = localStorage.getItem('loggedInUserRole');
+                const userName = localStorage.getItem('loggedInUserName');
+                
+                console.log('Dados do usuário:', { userRole, userName });
+
+                if (!['impressor', 'admin'].includes(userRole)) {
+                    alert('Você não tem permissão para marcar itens como impressos');
+                    return;
+                }
+
+                const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+                console.log('Referência do pedido:', pedidoRef.path);
+                
+                const pedidoDoc = await getDoc(pedidoRef);
+                console.log('Pedido existe:', pedidoDoc.exists());
+
+                if (!pedidoDoc.exists()) {
+                    alert('Pedido não encontrado');
+                    return;
+                }
+
+                const pedido = pedidoDoc.data();
+                console.log('Dados do pedido:', pedido);
+                
+                if (!pedido.itens || !pedido.itens[itemIndex]) {
+                    alert('Item não encontrado');
+                    return;
+                }
+
+                // Criar objeto de atualização
+                const updateData = {
+                    [`itens.${itemIndex}.productionSteps`]: {
+                        ...pedido.itens[itemIndex].productionSteps,
+                        impressao: {
+                            concluido: true,
+                            responsavel: userName,
+                            data: new Date().toISOString()
+                        }
+                    }
+                };
+                
+                console.log('Dados para atualização:', updateData);
+
+                // Atualizar no banco de dados
+                await updateDoc(pedidoRef, updateData);
+                console.log('Atualização concluída com sucesso');
+
+                alert('Item marcado como impresso com sucesso!');
+                
+                // Recarregar os dados
+                await carregarDadosPedido();
+            } catch (error) {
+                console.error('Erro ao marcar item como impresso:', error);
+                alert('Erro ao marcar item como impresso: ' + error.message);
+            }
+        }
+
+        // Função para marcar item como acabado
+        async function marcarItemComoAcabado(pedidoId, itemIndex) {
+            try {
+                console.log('Iniciando marcarItemComoAcabado:', { pedidoId, itemIndex });
+                
+                const userRole = localStorage.getItem('loggedInUserRole');
+                const userName = localStorage.getItem('loggedInUserName');
+                
+                console.log('Dados do usuário:', { userRole, userName });
+
+                if (!['producao', 'admin'].includes(userRole)) {
+                    alert('Você não tem permissão para marcar itens como acabados');
+                    return;
+                }
+
+                const pedidoRef = doc(db, `artifacts/${shopInstanceAppId}/pedidos`, pedidoId);
+                console.log('Referência do pedido:', pedidoRef.path);
+                
+                const pedidoDoc = await getDoc(pedidoRef);
+                console.log('Pedido existe:', pedidoDoc.exists());
+
+                if (!pedidoDoc.exists()) {
+                    alert('Pedido não encontrado');
+                    return;
+                }
+
+                const pedido = pedidoDoc.data();
+                console.log('Dados do pedido:', pedido);
+                
+                if (!pedido.itens || !pedido.itens[itemIndex]) {
+                    alert('Item não encontrado');
+                    return;
+                }
+
+                // Criar objeto de atualização
+                const updateData = {
+                    [`itens.${itemIndex}.productionSteps`]: {
+                        ...pedido.itens[itemIndex].productionSteps,
+                        acabamento: {
+                            concluido: true,
+                            responsavel: userName,
+                            data: new Date().toISOString()
+                        }
+                    }
+                };
+                
+                console.log('Dados para atualização:', updateData);
+
+                // Atualizar no banco de dados
+                await updateDoc(pedidoRef, updateData);
+                console.log('Atualização concluída com sucesso');
+
+                alert('Item marcado como acabado com sucesso!');
+                
+                // Recarregar os dados
+                await carregarDadosPedido();
+            } catch (error) {
+                console.error('Erro ao marcar item como acabado:', error);
+                alert('Erro ao marcar item como acabado: ' + error.message);
+            }
         }
 
         // Função para carregar os dados do pedido
@@ -279,7 +400,7 @@
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
                                                 ${['impressor', 'admin'].includes(window.loggedInUserRole) ? 
-                                                    `<button onclick="window.marcarItemComoImpresso('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                                                    `<button onclick="marcarItemComoImpresso('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como impresso
                                                     </button>` : 
                                                     ''}
@@ -299,7 +420,7 @@
                                                 <i class="fas fa-clock"></i>
                                                 Pendente
                                                 ${['producao', 'admin'].includes(window.loggedInUserRole) ? 
-                                                    `<button onclick="window.marcarItemComoAcabado('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                                                    `<button onclick="marcarItemComoAcabado('${pedidoId}', ${index})" class="ml-2 text-blue-600 hover:text-blue-800">
                                                         <i class="fas fa-check"></i> Marcar como acabado
                                                     </button>` : 
                                                     ''}
@@ -359,7 +480,9 @@
             }
         }
 
-        // Expor a função globalmente
+        // Expor as funções globalmente
+        window.marcarItemComoImpresso = marcarItemComoImpresso;
+        window.marcarItemComoAcabado = marcarItemComoAcabado;
         window.carregarDadosPedido = carregarDadosPedido;
 
         // Carregar dados ao iniciar a página
