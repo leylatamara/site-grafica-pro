@@ -615,9 +615,8 @@ window.abrirDetalhesPedidoNovaGuia = (pedido) => {
 
 async function handleFormSubmit(e) {
     e.preventDefault();
-    if (!auth.currentUser) return;
     const formId = e.target.id;
-
+    
     try {
         if (formId === 'formNovoPedido') {
             editingOrderId = document.getElementById('editingOrderIdField').value; 
@@ -628,7 +627,7 @@ async function handleFormSubmit(e) {
             let itensPedido=[], pagamentosPedido=[], formValido=true;
             itensForms.forEach((iF,idx)=>{const cId=iF.id.split('-')[1];const pS=document.getElementById(`itemProduto-${cId}`);if(!pS.value){formValido=false;exibirMensagem(`Selecione um produto para o item ${idx+1}.`,"warning");return;}const q=parseInt(document.getElementById(`itemQuantidade-${cId}`).value);if(q<=0){formValido=false;exibirMensagem(`Quantidade do item ${idx+1} inválida.`,"warning");return;}const o=pS.options[pS.selectedIndex];let pSteps={};try{pSteps=iF.dataset.productionSteps?JSON.parse(iF.dataset.productionSteps):{impressao:{},acabamento:{}};}catch(e){pSteps={impressao:{},acabamento:{}};}itensPedido.push({produtoId:pS.value,produtoNome:o.text,tipoProduto:o.dataset.tipo,quantidade:q,largura:parseFloat(document.getElementById(`itemLargura-${cId}`)?.value)||null,altura:parseFloat(document.getElementById(`itemAltura-${cId}`)?.value)||null,valorItem:parseFloat(document.getElementById(`itemValor-${cId}`).value.replace('R$ ','').replace(',','.')),descricao:document.getElementById(`itemDescricao-${cId}`).value,productionSteps:pSteps});});if(!formValido)return;
             document.querySelectorAll('.pagamento-form-item').forEach(i=>{const f=i.querySelector('.forma-pagamento').value,v=parseFloat(i.querySelector('.valor-pago').value);if(f&&v>=0||f==="Pendente")pagamentosPedido.push({forma:f,valorPago:v||0,observacao:i.querySelector('.observacao-pagamento').value,dataPagamento:f!=="Pendente"?Timestamp.now():null});});if(pagamentosPedido.length===0){exibirMensagem("Adicione um pagamento.","warning");return;}
-            const pData={clienteId:dados.clienteId,clienteNome:document.getElementById('pedidoClienteSearch').value,vendedorId:dados.vendedorId,vendedorNome:document.getElementById('pedidoVendedor').options[document.getElementById('pedidoVendedor').selectedIndex].text,pagamentos:pagamentosPedido,dataEntrega:dEFinal,status:document.getElementById('pedidoStatus').value,valorTotal:parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.')),itens:itensPedido,imagemPreviewPedidoBase64,descricaoGeral:document.getElementById('pedidoDescricaoGeral').value};
+            const pData={clienteId:dados.clienteId,clienteNome:document.getElementById('pedidoClienteSearch').value,vendedorId:dados.vendedorId,vendedorNome:document.getElementById('pedidoVendedor').options[document.getElementById('pedidoVendedor').selectedIndex].text,pagamentos:pagamentosPedido,dataEntrega:dEFinal,status:document.getElementById('pedidoStatus').value,valorTotal:parseFloat(document.getElementById('pedidoValorTotal').value.replace('R$ ','').replace(',','.')),itens:itensPedido,imagemPreviewPedidoBase64: window.pedidoImagemState.getImagem(),descricaoGeral:document.getElementById('pedidoDescricaoGeral').value};
             if(editingOrderId){const oPD=todosOsPedidosCache.find(p=>p.id===editingOrderId);pData.dataPedido=oPD?.dataPedido||Timestamp.now();pData.numeroPedido=oPD?.numeroPedido||`PED-${Date.now().toString().slice(-6)}`;await setDoc(doc(db,`artifacts/${shopInstanceAppId}/pedidos`,editingOrderId),pData);exibirMensagem('Pedido atualizado!', 'success');}else{pData.dataPedido=Timestamp.now();pData.numeroPedido=`PED-${Date.now().toString().slice(-6)}`;await addDoc(collection(db,`artifacts/${shopInstanceAppId}/pedidos`),pData);exibirMensagem('Pedido guardado!', 'success');}
             
             document.getElementById('formNovoPedido').reset();
@@ -638,7 +637,7 @@ async function handleFormSubmit(e) {
             document.getElementById('itensPedidoContainer').innerHTML='';
             document.getElementById('pagamentosContainer').innerHTML='';
             pagamentoCount=0;
-            pedidoImagemBase64=null;
+            window.pedidoImagemState.limpar();
             const pIP=document.getElementById('pedidoImagemPreview'),pIPH=document.getElementById('pedidoImagemPreviewPlaceholder');
             if(pIP&&pIPH){pIP.src="#";pIP.classList.add('hidden');pIPH.classList.remove('hidden');}
             itemPedidoCount=0;
@@ -707,11 +706,60 @@ async function processImageFilePedido(file) {
     const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
     if (file?.type.startsWith('image/')) {
         try {
-            const resizedBase64 = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => { const img = new Image(); img.onload = () => { let w = img.width, h = img.height; if(w > h){if(w > 800){h *= 800/w; w=800;}}else{if(h > 800){w *= 800/h; h=800;}} const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.onerror = reject; img.src = e.target.result; }; reader.onerror = reject; reader.readAsDataURL(file); });
-            pedidoImagemBase64 = resizedBase64;
-            if (pI && pH) { pI.src = resizedBase64; pI.classList.remove('hidden'); pH.classList.add('hidden'); }
-        } catch (error) { console.error("Erro imagem:", error); exibirMensagem("Não foi possível processar a imagem.", "error"); pedidoImagemBase64 = null; if (pI && pH) { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); } }
-    } else { pedidoImagemBase64 = null; if (pI && pH) { pI.src = "#"; pI.classList.add('hidden'); pH.classList.remove('hidden'); } if (file) exibirMensagem("Arquivo de imagem inválido.", "warning"); }
+            const resizedBase64 = await new Promise((resolve, reject) => { 
+                const reader = new FileReader(); 
+                reader.onload = e => { 
+                    const img = new Image(); 
+                    img.onload = () => { 
+                        let w = img.width, h = img.height; 
+                        if(w > h){
+                            if(w > 800){
+                                h *= 800/w; 
+                                w=800;
+                            }
+                        }else{
+                            if(h > 800){
+                                w *= 800/h; 
+                                h=800;
+                            }
+                        } 
+                        const canvas = document.createElement('canvas'); 
+                        canvas.width = w; 
+                        canvas.height = h; 
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h); 
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                    }; 
+                    img.onerror = reject; 
+                    img.src = e.target.result; 
+                }; 
+                reader.onerror = reject; 
+                reader.readAsDataURL(file); 
+            });
+            window.pedidoImagemState.setImagem(resizedBase64);
+            if (pI && pH) { 
+                pI.src = resizedBase64; 
+                pI.classList.remove('hidden'); 
+                pH.classList.add('hidden'); 
+            }
+        } catch (error) { 
+            console.error("Erro imagem:", error); 
+            exibirMensagem("Não foi possível processar a imagem.", "error"); 
+            window.pedidoImagemState.limpar(); 
+            if (pI && pH) { 
+                pI.src = "#"; 
+                pI.classList.add('hidden'); 
+                pH.classList.remove('hidden'); 
+            } 
+        }
+    } else { 
+        window.pedidoImagemState.limpar(); 
+        if (pI && pH) { 
+            pI.src = "#"; 
+            pI.classList.add('hidden'); 
+            pH.classList.remove('hidden'); 
+        } 
+        if (file) exibirMensagem("Arquivo de imagem inválido.", "warning"); 
+    }
 }
 window.handleImagemFilePedido=(ev)=>{processImageFilePedido(ev.target.files[0]);ev.target.value=null;}
 function handlePasteImagePedido(ev){ev.preventDefault();const items=(ev.clipboardData||window.clipboardData).items;for(const item of items)if(item.kind==='file'&&item.type.startsWith('image/')){processImageFilePedido(item.getAsFile());break;}}
@@ -776,10 +824,10 @@ window.prepararEdicaoPedido = (pObj) => {
         document.getElementById('pedidoHoraEntrega').value = "";
     }
 
-    pedidoImagemBase64 = pObj.imagemPreviewPedidoBase64 || null;
+    window.pedidoImagemState.setImagem(pObj.imagemPreviewPedidoBase64 || null);
     const pI = document.getElementById('pedidoImagemPreview'), pH = document.getElementById('pedidoImagemPreviewPlaceholder');
-    if (pedidoImagemBase64) {
-        pI.src = pedidoImagemBase64;
+    if (window.pedidoImagemState.getImagem()) {
+        pI.src = window.pedidoImagemState.getImagem();
         pI.classList.remove('hidden');
         pH.classList.add('hidden');
     } else {

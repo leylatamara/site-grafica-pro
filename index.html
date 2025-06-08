@@ -957,6 +957,20 @@
             updateButtonIcon(newTheme);
         });
 
+        // Objeto global para gerenciar o estado da imagem do pedido
+        window.pedidoImagemState = {
+            imagemBase64: null,
+            setImagem: function(base64) {
+                this.imagemBase64 = base64;
+            },
+            getImagem: function() {
+                return this.imagemBase64;
+            },
+            limpar: function() {
+                this.imagemBase64 = null;
+            }
+        };
+
         // Função para converter imagem em Base64
         function getBase64FromImage(imgElement) {
             const canvas = document.createElement('canvas');
@@ -982,8 +996,8 @@
                         preview.classList.remove('hidden');
                         placeholder.classList.add('hidden');
                         
-                        // Armazenar a imagem em Base64
-                        window.imagemPreviewPedidoBase64 = getBase64FromImage(img);
+                        // Armazenar a imagem em Base64 usando o objeto de estado
+                        window.pedidoImagemState.setImagem(getBase64FromImage(img));
                     };
                     img.src = e.target.result;
                 };
@@ -1000,7 +1014,7 @@
             preview.classList.add('hidden');
             placeholder.classList.remove('hidden');
             
-            window.imagemPreviewPedidoBase64 = null;
+            window.pedidoImagemState.limpar();
         }
 
         // Adicionar evento de paste para a área de imagem
@@ -1024,8 +1038,8 @@
             }
         });
 
-        // Inicializar variável global
-        window.imagemPreviewPedidoBase64 = null;
+        // Inicializar o estado da imagem
+        window.pedidoImagemState.limpar();
     </script>
 </body>
 </html>
