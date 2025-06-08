@@ -1323,12 +1323,23 @@
 
         // Função para abrir o modal de permissões
         function mostrarSecao(idSecao, isMenuLink = false) {
-            if (idSecao === 'gerenciarPermissoes') {
-                document.getElementById('modalGerenciarPermissoesOverlay').classList.remove('hidden');
-                carregarPermissoesSetor();
-                return;
+            try {
+                console.log('Tentando mostrar seção:', idSecao);
+                if (idSecao === 'gerenciarPermissoes') {
+                    const modal = document.getElementById('modalGerenciarPermissoesOverlay');
+                    if (!modal) {
+                        console.error('Modal de permissões não encontrado');
+                        return;
+                    }
+                    modal.classList.remove('hidden');
+                    carregarPermissoesSetor();
+                    return;
+                }
+                // ... restante da função original ...
+            } catch (error) {
+                console.error('Erro ao mostrar seção:', error);
+                exibirMensagem('Erro ao abrir seção. Por favor, tente novamente.', 'error');
             }
-            // ... restante da função original ...
         }
 
         // Função para fechar o modal
