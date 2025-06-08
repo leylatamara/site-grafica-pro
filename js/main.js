@@ -5,18 +5,18 @@
  * Orquestra a aplicação, importa e inicializa todos os módulos.
  */
 
-// MÓDULOS ESSENCIAIS
-import { initAuth, handleLogin, logout } from './auth.js';
-import { ajustarPaddingBody, setActiveMenuLink } from './ui.js';
-import { injectAllTemplates } from './templates.js';
+// MÓDULOS ESSENCIAIS (agora importados pelos "apelidos" do import map)
+import { initAuth, handleLogin, logout } from 'auth';
+import { ajustarPaddingBody, setActiveMenuLink } from 'ui';
+import { injectAllTemplates } from 'templates';
 
 // MÓDULOS DE FUNCIONALIDADE
-import { init as initClientes, getClientes } from './clientes.js';
-import { init as initProdutos, getProdutos } from './produtos.js';
-import { init as initFuncionarios } from './funcionarios.js';
-import { init as initFornecedores } from './fornecedores.js';
-import { init as initPedidos, getPedidos } from './pedidos.js';
-import { init as initPermissoes, getPermissoesParaCargo } from './permissoes.js';
+import { init as initClientes, getClientes } from 'clientes';
+import { init as initProdutos, getProdutos } from 'produtos';
+import { init as initFuncionarios } from 'funcionarios';
+import { init as initFornecedores } from 'fornecedores';
+import { init as initPedidos, getPedidos } from 'pedidos';
+import { init as initPermissoes, getPermissoesParaCargo } from 'permissoes';
 
 // ESTADO GLOBAL DA APLICAÇÃO
 let loggedInUserRole = null;
@@ -27,7 +27,6 @@ let permissoesDoCargo = [];
 
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
 
-// Injeta o HTML de todas as secções no DOM assim que o script é carregado.
 injectAllTemplates();
 
 initAuth({
@@ -36,7 +35,6 @@ initAuth({
         loggedInUserName = userData.name;
         loggedInUserIdGlobal = userData.id;
 
-        // Carrega as permissões ANTES de configurar a UI
         await initPermissoes();
         permissoesDoCargo = getPermissoesParaCargo(loggedInUserRole);
 
@@ -51,12 +49,10 @@ initAuth({
 
         configurarAcessoPorCargo();
         
-        // Verifica se o utilizador pode ver a página inicial, caso contrário, redireciona
         const paginaInicial = permissoesDoCargo.includes('telaInicial') ? 'telaInicial' : permissoesDoCargo[0] || null;
         if (paginaInicial) {
             mostrarSecao(paginaInicial, true);
         } else {
-            // Caso de um cargo sem nenhuma permissão
             document.getElementById('mainContentArea').innerHTML = '<h2 class="text-center text-xl mt-10">Não tem permissão para aceder a nenhuma página.</h2>';
         }
     },
@@ -67,17 +63,15 @@ initAuth({
         document.body.style.paddingTop = '0px';
     },
     onAuthReady: async () => {
-        // As dependências que cada módulo precisa
         const commonDeps = {
             getRole: () => loggedInUserRole,
             getUserName: () => loggedInUserName,
             getUserId: () => loggedInUserIdGlobal,
             mostrarSecao,
             setActiveMenuLink,
-            atualizarDashboard // Passa a referência da função
+            atualizarDashboard
         };
         
-        // Inicializa todos os módulos de funcionalidade
         await Promise.all([
             initFuncionarios(commonDeps),
             initFornecedores(commonDeps),
@@ -88,7 +82,6 @@ initAuth({
         initPedidos({ ...commonDeps, getClientes, getProdutos });
     }
 });
-
 
 // --- LÓGICA DE NAVEGAÇÃO E UI ---
 
@@ -130,13 +123,11 @@ function mostrarSecao(idSecao, isMenuLink = false) {
 }
 
 function configurarAcessoPorCargo() {
-    // Esconde/Mostra os itens do menu com base nas permissões
     document.querySelectorAll('.exo-menu [data-section-id]').forEach(item => {
         const sectionId = item.dataset.sectionId;
         item.classList.toggle('hidden', !permissoesDoCargo.includes(sectionId));
     });
 
-    // Esconde o dropdown de cadastros se nenhum item filho estiver visível
     const cadastrosDropdown = document.getElementById('dropdownCadastrosMenu');
     if (cadastrosDropdown) {
         const subItensVisiveis = cadastrosDropdown.querySelectorAll('ul.drop-down-ul > li:not(.hidden)');
@@ -196,6 +187,4 @@ document.querySelectorAll('.exo-menu a[data-section]').forEach(link => {
 });
 
 // --- EXPOSIÇÃO DE FUNÇÕES GLOBAIS ---
-// Apenas as funções que são chamadas diretamente pelo HTML (onclick)
-// precisam de estar no escopo global. Os módulos já tratam disto internamente.
 window.mostrarSecao = mostrarSecao;
