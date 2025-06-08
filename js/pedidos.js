@@ -91,6 +91,7 @@ function renderizarListaCompletaPedidos() {
     }).join('');
 }
 
+
 function carregarUltimosPedidos() {
     const tb = document.getElementById('ultimosPedidosTableBody');
     if (!tb) return;
@@ -109,19 +110,22 @@ function carregarUltimosPedidos() {
     }
 }
 
+
 function carregarTodosPedidos() {
     const path = `artifacts/${shopInstanceAppId}/pedidos`;
     onSnapshot(query(collection(db, path)), (snap) => {
         todosOsPedidosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // **INÍCIO DA CORREÇÃO**
+        // Garante que a UI seja atualizada sempre que os dados dos pedidos mudarem.
         atualizarDashboard();
         carregarUltimosPedidos();
+        // Verifica se a página de visualização de pedidos está ativa para a atualizar.
         if (document.getElementById('visualizarPedidos')?.classList.contains('hidden') === false) {
             renderizarListaCompletaPedidos();
         }
+        // **FIM DA CORREÇÃO**
     }, e => showNotification({ message: "Erro ao carregar pedidos.", type: 'error' }));
 }
-
-// **INÍCIO DA CORREÇÃO: Implementação das funções**
 
 function prepararEdicaoPedido(pObj) {
     if (!pObj || !pObj.id) { showNotification({ message: "Dados do pedido inválidos para edição.", type: "error" }); return; }
@@ -157,7 +161,7 @@ function prepararEdicaoPedido(pObj) {
 }
 
 function abrirDetalhesPedidoNovaGuia(pedido) {
-    // ... (código existente da função)
+    // ... Lógica para abrir detalhes em nova guia ...
 }
 
 async function marcarComoEntregue(pedidoId) {
@@ -176,9 +180,6 @@ function excluirPedido(pedidoId, numeroPedido) {
     });
 }
 
-// **FIM DA CORREÇÃO**
-
-
 export function init(deps) {
     getRole = deps.getRole;
     getUserName = deps.getUserName;
@@ -189,11 +190,7 @@ export function init(deps) {
     setActiveMenuLink = deps.setActiveMenuLink;
     atualizarDashboard = deps.atualizarDashboard;
 
-    carregarTodosPedidos(() => {
-        atualizarDashboard();
-        carregarUltimosPedidos();
-        renderizarListaCompletaPedidos();
-    });
+    carregarTodosPedidos();
 
     const filtros = ['filtroNomeCliente', 'filtroNumeroPedido', 'filtroMaterialProduto'];
     filtros.forEach(id => document.getElementById(id)?.addEventListener('input', renderizarListaCompletaPedidos));
@@ -205,7 +202,6 @@ export function init(deps) {
         renderizarListaCompletaPedidos(); 
     });
 
-    // Anexa as funções ao objeto window
     window.prepararEdicaoPedido = prepararEdicaoPedido;
     window.abrirDetalhesPedidoNovaGuia = abrirDetalhesPedidoNovaGuia;
     window.marcarComoEntregue = marcarComoEntregue;
@@ -217,7 +213,7 @@ export function init(deps) {
         abrirModalEspecifico('modalMudarStatusOverlay');
     };
     window.fecharModalMudarStatus = () => fecharModalEspecifico('modalMudarStatusOverlay');
-    // ... (restantes funções globais do formulário)
+    // ... (restantes funções globais)
 }
 
 export const getPedidos = () => todosOsPedidosCache;
